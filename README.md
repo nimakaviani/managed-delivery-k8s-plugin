@@ -1,0 +1,1 @@
+# managed-delivery-k8s-plugin
