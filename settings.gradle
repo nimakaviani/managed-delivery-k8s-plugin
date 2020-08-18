@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        mavenLocal()
+        maven { url "https://dl.bintray.com/spinnaker/gradle/" }
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'managed-delivery-k8s-plugin'
+include "k8s-plugin"
+
+def setBuildFile(project) {
+    project.buildFileName = "${project.name}.gradle"
+    project.children.each {
+        setBuildFile(it)
+    }
+}
+
+rootProject.children.each {
+    setBuildFile(it)
+}
+
