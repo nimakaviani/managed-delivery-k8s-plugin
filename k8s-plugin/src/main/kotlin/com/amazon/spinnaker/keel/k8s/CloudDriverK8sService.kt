@@ -4,14 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.config.DefaultServiceEndpoint
 import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
 import okhttp3.HttpUrl
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Component
-import retrofit.http.GET
-import retrofit.http.Header
-import retrofit.http.Path
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
-import java.util.function.Supplier
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Path
 
 interface CloudDriverK8sService {
     @GET("/manifests/{account}/{location}/{resource}")
@@ -23,21 +20,23 @@ interface CloudDriverK8sService {
     ): K8sResourceModel
 }
 
-class CloudDriverK8sServiceSupplier(){
-    companion object : Supplier<CloudDriverK8sService> {
-        @Autowired lateinit var clouddriverEndpoint: HttpUrl
-        @Autowired lateinit var objectMapper: ObjectMapper
-        @Autowired lateinit var clientProvider: OkHttpClientProvider
+class CloudDriverK8sServiceSupplier(
+        private val clouddriverEndpoint: HttpUrl,
+        private val objectMapper: ObjectMapper,
+        private val clientProvider: OkHttpClientProvider
+       ) : CloudDriverK8sService {
 
-        override fun get(): CloudDriverK8sService =
-                Retrofit.Builder()
-                        .addConverterFactory(JacksonConverterFactory.create(objectMapper))
-                        .baseUrl(clouddriverEndpoint)
-                        .client(clientProvider.getClient(DefaultServiceEndpoint("clouddriver", clouddriverEndpoint.toString())))
-                        .build()
-                        .create(
-                                CloudDriverK8sService::class.java
-                        );
+    private val client = Retrofit.Builder()
+            .addConverterFactory(JacksonConverterFactory.create(objectMapper))
+            .baseUrl(clouddriverEndpoint)
+            .client(clientProvider.getClient(DefaultServiceEndpoint("clouddriver", clouddriverEndpoint.toString())))
+            .build()
+            .create(
+                    CloudDriverK8sService::class.java
+            );
+
+    override suspend fun getK8sResource(acc: String, account: String, location: String, resource: String): K8sResourceModel {
+        return client.getK8sResource(acc, account, location, resource)
     }
 }
 

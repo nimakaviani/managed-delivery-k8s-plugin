@@ -20,6 +20,5 @@ data class Manifest(
     val apiVersion: String,
     val kind: String,
     val metadata: Map<String, Any?>,
-    val locations: SimpleLocations,
     val spec: Map<String, Any?>
 )

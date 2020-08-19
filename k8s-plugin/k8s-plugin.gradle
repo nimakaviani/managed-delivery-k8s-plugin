@@ -34,6 +34,7 @@ dependencies {
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-clouddriver', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-orca', version: "${keelVersion}")
+    compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-retrofit', version: "${keelVersion}")
     compileOnly (group: 'org.springframework', name: 'spring-context', version: '5.2.1.RELEASE')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")

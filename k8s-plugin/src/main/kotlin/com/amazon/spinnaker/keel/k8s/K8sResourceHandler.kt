@@ -2,6 +2,7 @@ package com.amazon.spinnaker.keel.k8s
 
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
@@ -12,9 +13,9 @@ import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 
 class K8sResourceHandler (
-    private val cloudDriverK8sService: CloudDriverK8sService,
-    private val taskLauncher: TaskLauncher,
-    private val resolvers: List<Resolver<*>>
+        private val cloudDriverK8sService: CloudDriverK8sService,
+        private val taskLauncher: TaskLauncher,
+        private val resolvers: List<Resolver<*>>
 ) : ResolvableResourceHandler<K8sResourceSpec, K8sResourceSpec>(resolvers) {
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
@@ -31,7 +32,7 @@ class K8sResourceHandler (
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceSpec? =
         cloudDriverK8sService.getK8sResource(
             resource.spec,
-            resource.spec.locations.account
+            resource.spec.locations
         )
 
     override suspend fun desired(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
@@ -45,16 +46,16 @@ class K8sResourceHandler (
 
     private suspend fun CloudDriverK8sService.getK8sResource(
         resource: K8sResourceSpec,
-        account: String
+        locations: SimpleLocations
     ): K8sResourceSpec? =
         coroutineScope {
             try {
                 getK8sResource(
-                    account,
-                    account,
+                    locations.account,
+                    locations.account,
                     resource.location(),
                     resource.name()
-                ).toResourceModel()
+                ).toResourceModel(locations)
             } catch (e: HttpException) {
                 if (e.isNotFound) {
                     null
@@ -64,13 +65,13 @@ class K8sResourceHandler (
             }
         }
 
-    private fun K8sResourceModel.toResourceModel() =
+    private fun K8sResourceModel.toResourceModel(locations: SimpleLocations) =
         K8sResourceSpec(
             apiVersion = manifest.apiVersion,
             kind = manifest.kind,
             metadata = manifest.metadata,
             spec = manifest.spec as SpecType,
-            locations = manifest.locations
+            locations = locations
         )
 
     override suspend fun upsert(
