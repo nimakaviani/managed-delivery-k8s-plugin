@@ -1,9 +1,4 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-}
-
+apply plugin: "java-library"
 apply plugin: "io.spinnaker.plugin.service-extension"
 apply plugin: "maven-publish"
 apply plugin: "kotlin"
@@ -13,9 +8,22 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 repositories {
+    jcenter() {
+        metadataSources {
+            artifact()
+            mavenPom()
+        }
+    }
+    gradlePluginPortal() {
+        metadataSources {
+            artifact()
+            mavenPom()
+        }
+    }
     mavenCentral()
-    jcenter()
-    maven { url "http://dl.bintray.com/spinnaker/spinnaker/" }
+    if (property("korkVersion").toString().endsWith("-SNAPSHOT")) {
+        mavenLocal()
+    }
 }
 
 spinnakerPlugin {
@@ -34,17 +42,21 @@ dependencies {
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-clouddriver', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-orca', version: "${keelVersion}")
+    compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-core', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-retrofit', version: "${keelVersion}")
     compileOnly (group: 'org.springframework', name: 'spring-context', version: '5.2.1.RELEASE')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
 
+    testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-core', version: "${keelVersion}")
     testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
-
+    testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-orca', version: "${keelVersion}")
+    testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-test', version: "${keelVersion}")
     testImplementation "org.junit.jupiter:junit-jupiter-api:5.5.2"
     testImplementation group: 'io.strikt', name: 'strikt-core', version: '0.22.1'
     testImplementation group: 'dev.minutest', name: 'minutest', version: '1.10.0'
     testImplementation group: 'io.mockk', name: 'mockk', version: '1.9.3'
+    testImplementation("dev.minutest:minutest")
 
     testRuntime "org.junit.jupiter:junit-jupiter-engine:5.4.0"
     testRuntime "org.junit.platform:junit-platform-launcher:1.4.0"
@@ -56,6 +68,14 @@ tasks.withType(Test) {
 }
 
 compileKotlin {
+    kotlinOptions {
+        languageVersion = "1.3"
+        jvmTarget = "1.8"
+        freeCompilerArgs = ['-Xjvm-default=enable']
+    }
+}
+
+compileTestKotlin {
     kotlinOptions {
         languageVersion = "1.3"
         jvmTarget = "1.8"

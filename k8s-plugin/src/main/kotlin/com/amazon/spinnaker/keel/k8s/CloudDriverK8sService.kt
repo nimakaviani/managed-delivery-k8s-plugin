@@ -11,11 +11,11 @@ import retrofit2.http.Header
 import retrofit2.http.Path
 
 interface CloudDriverK8sService {
-    @GET("/manifests/{account}/{location}/{resource}")
+    @GET("/manifests/{account}/{namespace}/{resource}")
     suspend fun getK8sResource(
         @Header("X-SPINNAKER-ACCOUNTS") acc: String,
         @Path("account") account: String,
-        @Path("location") location: String,
+        @Path("namespace") namespace: String,
         @Path("resource") resource: String
     ): K8sResourceModel
 }
@@ -35,8 +35,8 @@ class CloudDriverK8sServiceSupplier(
                     CloudDriverK8sService::class.java
             );
 
-    override suspend fun getK8sResource(acc: String, account: String, location: String, resource: String): K8sResourceModel {
-        return client.getK8sResource(acc, account, location, resource)
+    override suspend fun getK8sResource(acc: String, account: String, namespace: String, resource: String): K8sResourceModel {
+        return client.getK8sResource(acc, account, namespace, resource)
     }
 }
 

@@ -15,8 +15,19 @@ plugins {
     id("com.diffplug.spotless").version("5.1.0")
 }
 
-repositories {
-    mavenCentral()
+allprojects {
+    repositories {
+        jcenter() {
+            metadataSources {
+                artifact()
+                mavenPom()
+            }
+        }
+        mavenCentral()
+        if (property("korkVersion").toString().endsWith("-SNAPSHOT")) {
+            mavenLocal()
+        }
+    }
 }
 
 spinnakerBundle {

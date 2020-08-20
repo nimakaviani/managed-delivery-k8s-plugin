@@ -53,7 +53,7 @@ class K8sResourceHandler (
                 getK8sResource(
                     locations.account,
                     locations.account,
-                    resource.location(),
+                    resource.namespace,
                     resource.name()
                 ).toResourceModel(locations)
             } catch (e: HttpException) {
@@ -102,7 +102,7 @@ class K8sResourceHandler (
             mapOf(
                 "moniker" to mapOf(
                     "app" to app,
-                    "location" to location()
+                    "location" to namespace
                 ),
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,

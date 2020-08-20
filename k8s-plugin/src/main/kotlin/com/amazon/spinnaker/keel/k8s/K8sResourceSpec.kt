@@ -14,9 +14,11 @@ data class K8sResourceSpec(
     override val locations: SimpleLocations
 ) : ResourceSpec, Locatable<SimpleLocations> {
 
-    private val namespace = metadata["namespace"] ?: "default"
+    val namespace: String = (metadata["namespace"] ?: "default") as String
+
     private val annotations = metadata["annotations"]
     private val appName = if (annotations != null) ((metadata["annotations"] as Map<String, String>)["moniker.spinnaker.io/application"]) else null
+
     override val application: String
         get() = (appName ?: "$namespace-$kind-${metadata["name"]}")
 
@@ -25,10 +27,6 @@ data class K8sResourceSpec(
 
     fun name(): String {
         return "$kind ${(metadata["name"] as String)}"
-    }
-
-    fun location(): String {
-        return metadata["namespace"]?.toString() ?: "default"
     }
 
     fun resource(): K8sResource {
