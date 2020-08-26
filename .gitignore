@@ -2,4 +2,3 @@ k8s-plugin/build/*
 build/*
 .gradle/*
 .idea/*
-gradle/
