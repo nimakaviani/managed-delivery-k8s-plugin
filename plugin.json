@@ -1,0 +1,8 @@
+[
+  {
+    "id": "aws.ManagedDeliveryK8sPlugin",
+    "description": "k8s support for managed delivery",
+    "provider": "https://aws.amazon.com",
+    "releases": []
+  }
+]
