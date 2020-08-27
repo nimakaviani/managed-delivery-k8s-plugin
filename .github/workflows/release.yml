@@ -59,17 +59,17 @@ jobs:
           asset_name: ${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           asset_content_type: application/zip 
           
-      - name: checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: 'master'
-
       - name: mutate plugin-info.json
         id: mutate-package-info
         env:
           ARTIFACT_URL: https://github.com/${{ steps.get_project_info.outputs.REPO }}/releases/download/${{ steps.get_project_info.outputs.VERSION }}/${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           VERSION: ${{ steps.get_project_info.outputs.VERSION }}
         run: cat ./build/distributions/plugin-info.json | jq -r --arg VERSION "$VERSION" '.releases |= map(if .version == $VERSION then . + '{\"url\":\"$ARTIFACT_URL\"}' else . end)' > ./plugins-temp.json 
+
+      - name: checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: 'master'
 
       - name: merge plugins.json
         id: merge-plugin-repository
