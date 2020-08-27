@@ -58,6 +58,11 @@ jobs:
           asset_path: ./build/distributions/${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           asset_name: ${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           asset_content_type: application/zip 
+          
+      - name: checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: 'master'
 
       - name: mutate plugin-info.json
         id: mutate-package-info
