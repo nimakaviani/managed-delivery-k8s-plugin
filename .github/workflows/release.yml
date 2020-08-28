@@ -18,6 +18,9 @@ jobs:
         with:
           ref: 'master'
 
+      - name: get tags
+        run: git fetch --prune --unshallow --tags
+
       - name: get project info
         id: get_project_info
         run: |
@@ -25,18 +28,13 @@ jobs:
           echo ::set-output name=PROJECT_KEBAB::$(basename `pwd` | sed 's/\([a-z0-9]\)\([A-Z]\)/\1_\L\2/g')
           echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
           echo ::set-output name=REPO::${GITHUB_REPOSITORY}
-          
-      - name: checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ steps.get_project_info.outputs.VERSION }}
-          
+
       - name: run tests
         run: ./gradlew test
 
       - name: build
-        run: ./gradlew releaseBundle
- 
+        run: ./gradlew releaseBundle && ls -la ./build/distributions
+
       - name: create release
         id: create_release
         uses: actions/create-release@v1
@@ -49,27 +47,22 @@ jobs:
           prerelease: false
 
       - name: upload release asset
-        id: upload-release-asset 
+        id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./build/distributions/${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           asset_name: ${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
-          asset_content_type: application/zip 
-          
+          asset_content_type: application/zip
+
       - name: mutate plugin-info.json
         id: mutate-package-info
         env:
           ARTIFACT_URL: https://github.com/${{ steps.get_project_info.outputs.REPO }}/releases/download/${{ steps.get_project_info.outputs.VERSION }}/${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
           VERSION: ${{ steps.get_project_info.outputs.VERSION }}
         run: cat ./build/distributions/plugin-info.json | jq -r --arg VERSION "$VERSION" '.releases |= map(if .version == $VERSION then . + '{\"url\":\"$ARTIFACT_URL\"}' else . end)' > ./plugins-temp.json 
-
-      - name: checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: 'master'
 
       - name: merge plugins.json
         id: merge-plugin-repository
