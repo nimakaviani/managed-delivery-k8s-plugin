@@ -16,17 +16,12 @@ spinnaker:
           url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
 
-
-
-
-
 ## Build
 run `./gradlew releaseBundle` and copy the created zip file to
 `/opt/plugin/keel` or your plugin folder of choice. Make sure that the folder is
 writable for the plugin to be unzipped in.
 
 ## Install
-
 
 Enable the plugin by copying the snippet below to your `keel.yml` config file:
 
