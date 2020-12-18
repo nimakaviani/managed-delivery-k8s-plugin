@@ -26,9 +26,8 @@ data class K8sResourceSpec(
     override val id: String
         get() = "$namespace-$kind-${metadata["name"]}"
 
-    fun displayName(): String {
-        return "$kind ${(metadata["name"] as String)}"
-    }
+    val displayName: String
+        get() = "$namespace-$kind-${metadata["name"]}"
 
     fun name(): String {
         return "$kind ${(metadata["name"] as String)}"
