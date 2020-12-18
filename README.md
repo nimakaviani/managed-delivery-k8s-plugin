@@ -19,6 +19,7 @@ spinnaker:
 
 
 
+
 ## Build
 run `./gradlew releaseBundle` and copy the created zip file to
 `/opt/plugin/keel` or your plugin folder of choice. Make sure that the folder is
