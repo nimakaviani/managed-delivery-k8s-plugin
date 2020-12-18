@@ -24,6 +24,7 @@ writable for the plugin to be unzipped in.
 
 ## Install
 
+
 Enable the plugin by copying the snippet below to your `keel.yml` config file:
 
 ```yaml
