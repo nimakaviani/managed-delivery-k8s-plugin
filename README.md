@@ -5,9 +5,9 @@ Add the following to `keel.yml` in the necessary [profile](https://spinnaker.io/
 ```yaml
 spinnaker:
     extensibility:
+      plugins-root-path: /opt/keel/plugins
       plugins:
         aws.ManagedDeliveryK8sPlugin:
-          id: aws.ManagedDeliveryK8sPlugin
           enabled: true
           version: <<plugin release version>>
       repositories:

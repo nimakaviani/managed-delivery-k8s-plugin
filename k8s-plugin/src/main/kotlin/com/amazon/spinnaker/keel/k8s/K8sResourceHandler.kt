@@ -21,13 +21,15 @@ class K8sResourceHandler (
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
     override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
-        K8sResourceSpec(
-            apiVersion = resource.spec.apiVersion,
-            kind = resource.spec.kind,
-            spec = resource.spec.spec,
-            locations = resource.spec.locations,
-            metadata = resource.spec.metadata
-        )
+        with(resource.spec) {
+            return K8sResourceSpec(
+                apiVersion = apiVersion,
+                kind = kind,
+                spec = spec,
+                locations = locations,
+                metadata = metadata
+            )
+        }
 
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceSpec? =
         cloudDriverK8sService.getK8sResource(
@@ -36,13 +38,15 @@ class K8sResourceHandler (
         )
 
     override suspend fun desired(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
-        K8sResourceSpec(
-            apiVersion = resource.spec.apiVersion,
-            kind = resource.spec.kind,
-            spec = resource.spec.spec,
-            locations = resource.spec.locations,
-            metadata = resource.spec.metadata
-        )
+        with(resource.spec) {
+            K8sResourceSpec(
+                apiVersion = apiVersion,
+                kind = kind,
+                spec = spec,
+                locations = locations,
+                metadata = metadata
+            )
+        }
 
     private suspend fun CloudDriverK8sService.getK8sResource(
         resource: K8sResourceSpec,
@@ -76,14 +80,14 @@ class K8sResourceHandler (
 
     override suspend fun upsert(
         resource: Resource<K8sResourceSpec>,
-        diff: ResourceDiff<K8sResourceSpec>
+        resourceDiff: ResourceDiff<K8sResourceSpec>
     ): List<Task> {
 
-        if (!diff.hasChanges()) {
+        if (!resourceDiff.hasChanges()) {
             return listOf<Task>()
         }
 
-        val spec = (diff.desired)
+        val spec = (resourceDiff.desired)
         val account = resource.spec.locations.account
 
         return listOf(
@@ -107,7 +111,7 @@ class K8sResourceHandler (
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,
                 "manifests" to listOf(this.resource()),
-                "optionalArtifacts" to listOf<Map<Object, Object>>(),
+                "optionalArtifacts" to listOf<Map<Any, Any>>(),
                 "requiredArtifacts" to listOf<Map<String, Any?>>(),
                 "source" to SOURCE_TYPE,
                 "enableTraffic" to true.toString()

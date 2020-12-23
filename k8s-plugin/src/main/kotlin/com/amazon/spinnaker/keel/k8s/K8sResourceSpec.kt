@@ -17,12 +17,16 @@ data class K8sResourceSpec(
     val namespace: String = (metadata["namespace"] ?: "default") as String
 
     private val annotations = metadata["annotations"]
-    private val appName = if (annotations != null) ((metadata["annotations"] as Map<String, String>)["moniker.spinnaker.io/application"]) else null
+    private val appName =
+        if (annotations != null) ((metadata["annotations"] as Map<String, String>)["moniker.spinnaker.io/application"]) else null
 
     override val application: String
         get() = (appName ?: "$namespace-$kind-${metadata["name"]}")
 
     override val id: String
+        get() = "$namespace-$kind-${metadata["name"]}"
+
+    override val displayName: String
         get() = "$namespace-$kind-${metadata["name"]}"
 
     fun name(): String {
