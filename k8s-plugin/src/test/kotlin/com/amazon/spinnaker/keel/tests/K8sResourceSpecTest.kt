@@ -25,27 +25,28 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
                         |locations:
                         |  account: my-k8s-west-account
                         |  regions: []
-                        |apiVersion: "apps/v1"
-                        |kind: Deployment
-                        |metadata:
-                        |  name: hello-kubernetes
-                        |  annotations:
-                        |    moniker.spinnaker.io/application: spinmd
-                        |spec:
-                        |  replicas: 2
-                        |  selector:
-                        |    matchLabels:
-                        |      app: hello-kubernetes
-                        |  template:
-                        |    metadata:
-                        |      labels:
+                        |template:
+                        |  apiVersion: "apps/v1"
+                        |  kind: Deployment
+                        |  metadata:
+                        |    name: hello-kubernetes
+                        |    annotations:
+                        |      moniker.spinnaker.io/application: spinmd
+                        |  spec:
+                        |    replicas: 2
+                        |    selector:
+                        |      matchLabels:
                         |        app: hello-kubernetes
-                        |    spec:
-                        |      containers:
-                        |      - name: hello-kubernetes
-                        |        image: paulbouwer/hello-kubernetes:1.8
-                        |        ports:
-                        |        - containerPort: 8080
+                        |    template:
+                        |      metadata:
+                        |        labels:
+                        |          app: hello-kubernetes
+                        |      spec:
+                        |        containers:
+                        |        - name: hello-kubernetes
+                        |          image: paulbouwer/hello-kubernetes:1.8
+                        |          ports:
+                        |          - containerPort: 8080
                     """.trimMargin()
                 )
             }
@@ -57,7 +58,7 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
 
                 test("can be deserialized to a K8s object") {
                     expectThat(this)
-                        .get { spec["replicas"] }.isEqualTo(2)
+                        .get { template.spec["replicas"] }.isEqualTo(2)
                 }
 
                 test("uses default namespace for k8s resource when namespace missing") {

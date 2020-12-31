@@ -22,12 +22,15 @@ class K8sResourceHandler (
 
     override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
         with(resource.spec) {
+            val resourceTemplate = this.template
             return K8sResourceSpec(
-                apiVersion = apiVersion,
-                kind = kind,
-                spec = spec,
-                locations = locations,
-                metadata = metadata
+                template = K8sResourceTemplate(
+                    apiVersion = resourceTemplate.apiVersion,
+                    kind = resourceTemplate.kind,
+                    metadata = resourceTemplate.metadata,
+                    spec = resourceTemplate.spec as K8sSpec
+                ),
+                locations = locations
             )
         }
 
@@ -39,12 +42,15 @@ class K8sResourceHandler (
 
     override suspend fun desired(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
         with(resource.spec) {
-            K8sResourceSpec(
-                apiVersion = apiVersion,
-                kind = kind,
-                spec = spec,
-                locations = locations,
-                metadata = metadata
+            val resourceTemplate = this.template
+            return K8sResourceSpec(
+                template = K8sResourceTemplate(
+                    apiVersion = resourceTemplate.apiVersion,
+                    kind = resourceTemplate.kind,
+                    metadata = resourceTemplate.metadata,
+                    spec = resourceTemplate.spec as K8sSpec
+                ),
+                locations = locations
             )
         }
 
@@ -70,11 +76,13 @@ class K8sResourceHandler (
         }
 
     private fun K8sResourceModel.toResourceModel(locations: SimpleLocations) =
-        K8sResourceSpec(
-            apiVersion = manifest.apiVersion,
-            kind = manifest.kind,
-            metadata = manifest.metadata,
-            spec = manifest.spec as SpecType,
+            K8sResourceSpec(
+                template = K8sResourceTemplate(
+                    apiVersion = manifest.apiVersion,
+                    kind = manifest.kind,
+                    metadata = manifest.metadata,
+                    spec = manifest.spec as K8sSpec
+                ),
             locations = locations
         )
 
@@ -110,7 +118,7 @@ class K8sResourceHandler (
                 ),
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,
-                "manifests" to listOf(this.resource()),
+                "manifests" to listOf(this.template),
                 "optionalArtifacts" to listOf<Map<Any, Any>>(),
                 "requiredArtifacts" to listOf<Map<String, Any?>>(),
                 "source" to SOURCE_TYPE,

@@ -4,6 +4,7 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.netflix.spinnaker.keel.api.Environment
 import com.netflix.spinnaker.keel.api.Moniker
 import com.netflix.spinnaker.keel.api.plugins.Resolver
+import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
 import com.netflix.spinnaker.keel.model.OrchestrationRequest
 import com.netflix.spinnaker.keel.orca.OrcaService
@@ -28,7 +29,7 @@ import java.util.*
 internal class K8sResourceHandlerTest : JUnit5Minutests {
     private val cloudDriverK8sService = mockk<CloudDriverK8sService>()
     private val orcaService = mockk<OrcaService>()
-    private val publisher: ApplicationEventPublisher = mockk(relaxUnitFun = true)
+    private val publisher: EventPublisher = mockk(relaxUnitFun = true)
     private val repository = mockk<KeelRepository> {
         // we're just using this to get notifications
         every { environmentFor(any()) } returns Environment("test")
@@ -50,27 +51,28 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |locations:
         |  account: my-k8s-west-account
         |  regions: []
-        |apiVersion: "apps/v1"
-        |kind: Deployment
-        |metadata:
-        |  name: hello-kubernetes
-        |  annotations:
-        |    moniker.spinnaker.io/application: spinmd
-        |spec:
-        |  replicas: 2
-        |  selector:
-        |    matchLabels:
-        |      app: hello-kubernetes
-        |  template:
-        |    metadata:
-        |      labels:
+        |template:
+        |  apiVersion: "apps/v1"
+        |  kind: Deployment
+        |  metadata:
+        |    name: hello-kubernetes
+        |    annotations:
+        |      moniker.spinnaker.io/application: spinmd
+        |  spec:
+        |    replicas: 2
+        |    selector:
+        |      matchLabels:
         |        app: hello-kubernetes
-        |    spec:
-        |      containers:
-        |      - name: hello-kubernetes
-        |        image: paulbouwer/hello-kubernetes:1.8
-        |        ports:
-        |        - containerPort: 8080
+        |    template:
+        |      metadata:
+        |        labels:
+        |          app: hello-kubernetes
+        |      spec:
+        |        containers:
+        |        - name: hello-kubernetes
+        |          image: paulbouwer/hello-kubernetes:1.8
+        |          ports:
+        |          - containerPort: 8080
     """.trimMargin()
 
     private fun resourceModel(replicas: Int = 2) : K8sResourceModel {
@@ -166,7 +168,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     get("type").isEqualTo("deployManifest")
                 }
 
-                val resources = slot.captured.job.first()["manifests"] as List<K8sResource>
+                val resources = slot.captured.job.first()["manifests"] as List<K8sResourceTemplate>
                 expectThat(resources.first()) {
                     get { spec["replicas"] }.isEqualTo(2)
                 }
@@ -204,7 +206,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         get { childCount() }.isEqualTo(1)
                         get {
                             getChild(
-                                NodePath.startBuilding().propertyName("spec").mapKey("replicas").build()
+                                NodePath.startBuilding().propertyName("template").propertyName("spec").mapKey("replicas").build()
                             ).state
                         }.isEqualTo(DiffNode.State.CHANGED)
                     }

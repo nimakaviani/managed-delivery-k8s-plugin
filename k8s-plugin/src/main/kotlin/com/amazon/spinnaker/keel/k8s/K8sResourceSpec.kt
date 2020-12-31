@@ -4,44 +4,36 @@ import com.netflix.spinnaker.keel.api.Locatable
 import com.netflix.spinnaker.keel.api.ResourceSpec
 import com.netflix.spinnaker.keel.api.SimpleLocations
 
-typealias SpecType = MutableMap<String, Any?>
+typealias K8sSpec = MutableMap<String, Any?>
 
 data class K8sResourceSpec(
-    val apiVersion: String,
-    val kind: String,
-    val spec: SpecType,
-    val metadata: Map<String, Any?>,
+    val template: K8sResourceTemplate,
     override val locations: SimpleLocations
 ) : ResourceSpec, Locatable<SimpleLocations> {
 
-    val namespace: String = (metadata["namespace"] ?: "default") as String
+    val namespace: String = (template.metadata["namespace"] ?: "default") as String
 
-    private val annotations = metadata["annotations"]
+    private val annotations = template.metadata["annotations"]
     private val appName =
-        if (annotations != null) ((metadata["annotations"] as Map<String, String>)["moniker.spinnaker.io/application"]) else null
+        if (annotations != null) ((template.metadata["annotations"] as Map<String, String>)["moniker.spinnaker.io/application"]) else null
 
     override val application: String
-        get() = (appName ?: "$namespace-$kind-${metadata["name"]}")
+        get() = (appName ?: "$namespace-$template.kind-${template.metadata["name"]}")
 
     override val id: String
-        get() = "$namespace-$kind-${metadata["name"]}"
+        get() = "$namespace-${template.kind}-${template.metadata["name"]}"
 
     override val displayName: String
-        get() = "$namespace-$kind-${metadata["name"]}"
+        get() = "$namespace-${template.kind}-${template.metadata["name"]}"
 
     fun name(): String {
-        return "$kind ${(metadata["name"] as String)}"
-    }
-
-    fun resource(): K8sResource {
-        val cleanSpec = spec.filterNot { it.key == "location" }
-        return K8sResource(apiVersion, kind, metadata, cleanSpec as SpecType)
+        return "${template.kind}-${(template.metadata["name"] as String)}"
     }
 }
 
-data class K8sResource(
+data class K8sResourceTemplate(
     val apiVersion: String,
     val kind: String,
-    val metadata: Map<String, Any?>,
-    val spec: SpecType
+    val spec: K8sSpec,
+    val metadata: Map<String, Any?>
 )
