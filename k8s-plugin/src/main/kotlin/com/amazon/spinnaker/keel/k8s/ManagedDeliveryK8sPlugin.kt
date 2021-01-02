@@ -18,7 +18,8 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
         listOf(
                 beanDefinitionFor(CloudDriverK8sServiceSupplier::class.java),
                 beanDefinitionFor(K8sResourceHandler::class.java),
-                beanDefinitionFor(K8sResolver::class.java)
+                beanDefinitionFor(K8sResolver::class.java),
+                beanDefinitionFor(DockerImageResolver::class.java)
         ).forEach {
             registerBean(it, registry)
         }

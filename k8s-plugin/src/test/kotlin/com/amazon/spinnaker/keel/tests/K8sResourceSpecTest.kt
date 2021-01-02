@@ -25,6 +25,8 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
                         |locations:
                         |  account: my-k8s-west-account
                         |  regions: []
+                        |metadata:
+                        |  application: test
                         |template:
                         |  apiVersion: "apps/v1"
                         |  kind: Deployment
@@ -63,7 +65,12 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
 
                 test("uses default namespace for k8s resource when namespace missing") {
                     expectThat(this)
-                        .get { namespace }.isEqualTo("default")
+                        .get { template.namespace() }.isEqualTo("default")
+                }
+
+                test("uses default namespace for k8s resource when namespace missing") {
+                    expectThat(this)
+                        .get { metadata["application"] }.isEqualTo("test")
                 }
             }
         }

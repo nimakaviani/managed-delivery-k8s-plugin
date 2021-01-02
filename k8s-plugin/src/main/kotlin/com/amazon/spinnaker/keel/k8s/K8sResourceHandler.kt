@@ -1,71 +1,60 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
-import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
+import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.model.Job
 import com.netflix.spinnaker.keel.retrofit.isNotFound
 import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
+import kotlin.collections.ArrayList
 
 class K8sResourceHandler (
-        private val cloudDriverK8sService: CloudDriverK8sService,
-        private val taskLauncher: TaskLauncher,
-        private val resolvers: List<Resolver<*>>
-) : ResolvableResourceHandler<K8sResourceSpec, K8sResourceSpec>(resolvers) {
+    private val cloudDriverK8sService: CloudDriverK8sService,
+    private val taskLauncher: TaskLauncher,
+    override val eventPublisher: EventPublisher,
+    private val resolvers: List<Resolver<*>>
+) : ResolvableResourceHandler<K8sResourceSpec, K8sObjectManifest>(resolvers) {
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
-    override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
+    override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sObjectManifest =
         with(resource.spec) {
-            val resourceTemplate = this.template
-            return K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = resourceTemplate.apiVersion,
-                    kind = resourceTemplate.kind,
-                    metadata = resourceTemplate.metadata,
-                    spec = resourceTemplate.spec as K8sSpec
-                ),
-                locations = locations
-            )
+            return this.template
         }
 
-    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceSpec? =
-        cloudDriverK8sService.getK8sResource(
-            resource.spec,
-            resource.spec.locations
-        )
-
-    override suspend fun desired(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
-        with(resource.spec) {
-            val resourceTemplate = this.template
-            return K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = resourceTemplate.apiVersion,
-                    kind = resourceTemplate.kind,
-                    metadata = resourceTemplate.metadata,
-                    spec = resourceTemplate.spec as K8sSpec
-                ),
-                locations = locations
-            )
-        }
+    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? {
+        val clusterResource = cloudDriverK8sService.getK8sResource(resource) ?: return null
+        val mapper = jacksonObjectMapper()
+        val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+        return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
+    }
 
     private suspend fun CloudDriverK8sService.getK8sResource(
-        resource: K8sResourceSpec,
-        locations: SimpleLocations
-    ): K8sResourceSpec? =
+        r: Resource<K8sResourceSpec>
+    ): K8sObjectManifest? =
         coroutineScope {
             try {
-                getK8sResource(
-                    locations.account,
-                    locations.account,
-                    resource.namespace,
-                    resource.name()
-                ).toResourceModel(locations)
+                val manifest = getK8sResource(
+                    r.spec.locations.account,
+                    r.spec.locations.account,
+                    r.spec.template.namespace(),
+                    r.spec.template.kindQualifiedName()
+                ).toResourceModel()
+
+                val imageString = find(manifest.spec, IMAGE) as String?
+                imageString?.let {
+                    log.info("Deployed artifact $it")
+                    notifyArtifactDeployed(r, getTag(it))
+                }
+
+                manifest
             } catch (e: HttpException) {
                 if (e.isNotFound) {
                     null
@@ -75,27 +64,30 @@ class K8sResourceHandler (
             }
         }
 
-    private fun K8sResourceModel.toResourceModel(locations: SimpleLocations) =
-            K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = manifest.apiVersion,
-                    kind = manifest.kind,
-                    metadata = manifest.metadata,
-                    spec = manifest.spec as K8sSpec
-                ),
-            locations = locations
+    private fun K8sResourceModel.toResourceModel() : K8sObjectManifest =
+        K8sObjectManifest(
+            apiVersion = manifest.apiVersion,
+            kind = manifest.kind,
+            metadata = manifest.metadata,
+            spec = manifest.spec
         )
 
     override suspend fun upsert(
         resource: Resource<K8sResourceSpec>,
-        resourceDiff: ResourceDiff<K8sResourceSpec>
+        diff: ResourceDiff<K8sObjectManifest>
     ): List<Task> {
 
-        if (!resourceDiff.hasChanges()) {
-            return listOf<Task>()
+        if (!diff.hasChanges()) {
+            return emptyList()
         }
 
-        val spec = (resourceDiff.desired)
+        val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String?
+        imageString?.let{
+            log.info("Deploying artifact $it")
+            notifyArtifactDeploying(resource, getTag(it))
+        }
+
+        val spec = (diff.desired)
         val account = resource.spec.locations.account
 
         return listOf(
@@ -108,21 +100,43 @@ class K8sResourceHandler (
         )
     }
 
-    private fun K8sResourceSpec.job(app: String, account: String): Job =
+    private fun K8sObjectManifest.job(app: String, account: String): Job =
         Job(
             "deployManifest",
             mapOf(
                 "moniker" to mapOf(
                     "app" to app,
-                    "location" to namespace
+                    "location" to namespace()
                 ),
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,
-                "manifests" to listOf(this.template),
+                "manifests" to listOf(this),
                 "optionalArtifacts" to listOf<Map<Any, Any>>(),
                 "requiredArtifacts" to listOf<Map<String, Any?>>(),
                 "source" to SOURCE_TYPE,
                 "enableTraffic" to true.toString()
             )
         )
+
+    private fun getTag(imageString: String): String {
+        val regex = """.*:(.+)""".toRegex()
+        val matchResult = regex.find(imageString)
+        val (tag) = matchResult!!.destructured
+        return tag
+    }
+
+    private fun find(m: MutableMap<String, Any?>, key: String): Any? {
+        m[key]?.let{ return it }
+        m.forEach{
+            if (it.value is Map<*, *>) {
+                val r = it.value as MutableMap<String, Any?>
+                find(r, key)?.let{ it -> return it}
+            } else if (it.value is ArrayList<*>) {
+                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
+                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
+                }
+            }
+        }
+        return null
+    }
 }
