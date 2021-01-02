@@ -172,6 +172,10 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 expectThat(resources.first()) {
                     get { spec["replicas"] }.isEqualTo(2)
                 }
+
+                expectThat(resources.first()) {
+                    get{ name }.isEqualTo("deployment-hello-kubernetes")
+                }
             }
         }
 
@@ -206,7 +210,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         get { childCount() }.isEqualTo(1)
                         get {
                             getChild(
-                                NodePath.startBuilding().propertyName("template").propertyName("spec").mapKey("replicas").build()
+                                NodePath.startBuilding().propertyName("spec").mapKey("replicas").build()
                             ).state
                         }.isEqualTo(DiffNode.State.CHANGED)
                     }

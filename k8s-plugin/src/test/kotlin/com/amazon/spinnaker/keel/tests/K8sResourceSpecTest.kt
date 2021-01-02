@@ -63,7 +63,7 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
 
                 test("uses default namespace for k8s resource when namespace missing") {
                     expectThat(this)
-                        .get { namespace }.isEqualTo("default")
+                        .get { template.namespace }.isEqualTo("default")
                 }
             }
         }

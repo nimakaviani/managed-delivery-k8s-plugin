@@ -16,56 +16,33 @@ class K8sResourceHandler (
         private val cloudDriverK8sService: CloudDriverK8sService,
         private val taskLauncher: TaskLauncher,
         private val resolvers: List<Resolver<*>>
-) : ResolvableResourceHandler<K8sResourceSpec, K8sResourceSpec>(resolvers) {
+) : ResolvableResourceHandler<K8sResourceSpec, K8sResourceTemplate>(resolvers) {
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
-    override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
+    override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sResourceTemplate =
         with(resource.spec) {
-            val resourceTemplate = this.template
-            return K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = resourceTemplate.apiVersion,
-                    kind = resourceTemplate.kind,
-                    metadata = resourceTemplate.metadata,
-                    spec = resourceTemplate.spec as K8sSpec
-                ),
-                locations = locations
-            )
+            return this.template
         }
 
-    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceSpec? =
+    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceTemplate? =
         cloudDriverK8sService.getK8sResource(
-            resource.spec,
+            resource.spec.template,
             resource.spec.locations
         )
 
-    override suspend fun desired(resource: Resource<K8sResourceSpec>): K8sResourceSpec =
-        with(resource.spec) {
-            val resourceTemplate = this.template
-            return K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = resourceTemplate.apiVersion,
-                    kind = resourceTemplate.kind,
-                    metadata = resourceTemplate.metadata,
-                    spec = resourceTemplate.spec as K8sSpec
-                ),
-                locations = locations
-            )
-        }
-
     private suspend fun CloudDriverK8sService.getK8sResource(
-        resource: K8sResourceSpec,
+        resource: K8sResourceTemplate,
         locations: SimpleLocations
-    ): K8sResourceSpec? =
+    ): K8sResourceTemplate? =
         coroutineScope {
             try {
                 getK8sResource(
                     locations.account,
                     locations.account,
                     resource.namespace,
-                    resource.name()
-                ).toResourceModel(locations)
+                    resource.name
+                ).toResourceModel()
             } catch (e: HttpException) {
                 if (e.isNotFound) {
                     null
@@ -75,20 +52,17 @@ class K8sResourceHandler (
             }
         }
 
-    private fun K8sResourceModel.toResourceModel(locations: SimpleLocations) =
-            K8sResourceSpec(
-                template = K8sResourceTemplate(
-                    apiVersion = manifest.apiVersion,
-                    kind = manifest.kind,
-                    metadata = manifest.metadata,
-                    spec = manifest.spec as K8sSpec
-                ),
-            locations = locations
+    private fun K8sResourceModel.toResourceModel() : K8sResourceTemplate =
+        K8sResourceTemplate(
+            apiVersion = manifest.apiVersion,
+            kind = manifest.kind,
+            metadata = manifest.metadata,
+            spec = manifest.spec as K8sSpec
         )
 
     override suspend fun upsert(
         resource: Resource<K8sResourceSpec>,
-        resourceDiff: ResourceDiff<K8sResourceSpec>
+        resourceDiff: ResourceDiff<K8sResourceTemplate>
     ): List<Task> {
 
         if (!resourceDiff.hasChanges()) {
@@ -101,14 +75,14 @@ class K8sResourceHandler (
         return listOf(
             taskLauncher.submitJob(
                 resource = resource,
-                description = "applying k8s resource: ${spec.name()} ",
-                correlationId = spec.name(),
+                description = "applying k8s resource: ${spec.name} ",
+                correlationId = spec.name,
                 job = spec.job((resource.metadata["application"] as String), account)
             )
         )
     }
 
-    private fun K8sResourceSpec.job(app: String, account: String): Job =
+    private fun K8sResourceTemplate.job(app: String, account: String): Job =
         Job(
             "deployManifest",
             mapOf(
@@ -118,7 +92,7 @@ class K8sResourceHandler (
                 ),
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,
-                "manifests" to listOf(this.template),
+                "manifests" to listOf(this),
                 "optionalArtifacts" to listOf<Map<Any, Any>>(),
                 "requiredArtifacts" to listOf<Map<String, Any?>>(),
                 "source" to SOURCE_TYPE,
