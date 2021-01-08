@@ -1,10 +1,13 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
 import com.netflix.spinnaker.keel.api.Locatable
 import com.netflix.spinnaker.keel.api.ResourceSpec
 import com.netflix.spinnaker.keel.api.SimpleLocations
-import com.netflix.spinnaker.keel.api.schema.Optional
-import javax.websocket.ContainerProvider
+import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
+import com.netflix.spinnaker.keel.api.artifacts.DOCKER
+import com.netflix.spinnaker.keel.docker.ContainerProvider
+import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
 typealias K8sSpec = MutableMap<String, Any?>
 
@@ -12,7 +15,7 @@ data class K8sResourceSpec(
     val container: ContainerProvider?,
     val template: K8sResourceTemplate,
     override val locations: SimpleLocations
-) : ResourceSpec, Locatable<SimpleLocations> {
+) : ArtifactReferenceProvider, ResourceSpec, Locatable<SimpleLocations> {
 
     private val namespace: String = (template.metadata["namespace"] ?: "default") as String
     private val annotations = template.metadata["annotations"]
@@ -28,7 +31,11 @@ data class K8sResourceSpec(
     override val displayName: String
         get() = "$namespace-${template.kind}-${template.metadata["name"]}".toLowerCase()
 
+    override val artifactReference: String
+        get() = (container as ReferenceProvider).reference
 
+    override val artifactType: ArtifactType?
+        get() = DOCKER
 }
 
 data class K8sResourceTemplate(
@@ -37,6 +44,10 @@ data class K8sResourceTemplate(
     val metadata: Map<String, Any?>,
     val spec: K8sSpec
 ) {
-    val namespace: String = (metadata["namespace"] ?: "default") as String
-    val name: String = if (metadata["name"] != null) ("${kind}-${(metadata["name"] as String)}".toLowerCase()) else ""
+    fun namespace(): String = (metadata["namespace"] ?: "default") as String
+    fun name(): String = metadata["name"] as String
+
+    // the kind qualified name is the format expected by the clouddriver
+    // e.g. "pod test" would indicate a pod of name "test"
+    fun kindQualifiedName(): String = "${kind.toLowerCase()} ${(metadata["name"] as String)}"
 }

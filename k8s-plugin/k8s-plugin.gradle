@@ -44,6 +44,7 @@ dependencies {
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-orca', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-core', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-retrofit', version: "${keelVersion}")
+    compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-docker', version: "${keelVersion}")
     compileOnly (group: 'org.springframework', name: 'spring-context', version: '5.2.1.RELEASE')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
@@ -52,15 +53,16 @@ dependencies {
     testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
     testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-orca', version: "${keelVersion}")
     testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-test', version: "${keelVersion}")
-    testImplementation "org.junit.jupiter:junit-jupiter-api:5.5.2"
-    testImplementation group: 'io.strikt', name: 'strikt-core', version: '0.22.1'
-    testImplementation group: 'dev.minutest', name: 'minutest', version: '1.10.0'
-    testImplementation group: 'io.mockk', name: 'mockk', version: '1.9.3'
+    testImplementation (group: 'com.netflix.spinnaker.keel', name: 'keel-docker', version: "${keelVersion}")
+    testImplementation ("org.junit.jupiter:junit-jupiter-api:5.5.2")
+    testImplementation (group: 'io.strikt', name: 'strikt-core', version: '0.22.1')
+    testImplementation (group: 'dev.minutest', name: 'minutest', version: '1.10.0')
+    testImplementation (group: 'io.mockk', name: 'mockk', version: '1.9.3')
     testImplementation("dev.minutest:minutest")
 
-    testRuntime "org.junit.jupiter:junit-jupiter-engine:5.4.0"
-    testRuntime "org.junit.platform:junit-platform-launcher:1.4.0"
-    testRuntime "org.junit.platform:junit-platform-commons:1.5.2"
+    testRuntime ("org.junit.jupiter:junit-jupiter-engine:5.4.0")
+    testRuntime ("org.junit.platform:junit-platform-launcher:1.4.0")
+    testRuntime ("org.junit.platform:junit-platform-commons:1.5.2")
 }
 
 tasks.withType(Test) {

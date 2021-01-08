@@ -174,7 +174,11 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 }
 
                 expectThat(resources.first()) {
-                    get{ name }.isEqualTo("deployment-hello-kubernetes")
+                    get{ name() }.isEqualTo("hello-kubernetes")
+                }
+
+                expectThat(resources.first()) {
+                    get{ kindQualifiedName() }.isEqualTo("deployment hello-kubernetes")
                 }
             }
         }

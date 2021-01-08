@@ -33,7 +33,7 @@ class CloudDriverK8sServiceSupplier(
             .build()
             .create(
                     CloudDriverK8sService::class.java
-            );
+            )
 
     override suspend fun getK8sResource(acc: String, account: String, namespace: String, resource: String): K8sResourceModel {
         return client.getK8sResource(acc, account, namespace, resource)

@@ -26,6 +26,7 @@ class K8sResourceHandler (
         }
 
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sResourceTemplate? =
+        // TODO: fix the diff between whats submitted and what is returned from k8s
         cloudDriverK8sService.getK8sResource(
             resource.spec.template,
             resource.spec.locations
@@ -40,8 +41,8 @@ class K8sResourceHandler (
                 getK8sResource(
                     locations.account,
                     locations.account,
-                    resource.namespace,
-                    resource.name
+                    resource.namespace(),
+                    resource.kindQualifiedName()
                 ).toResourceModel()
             } catch (e: HttpException) {
                 if (e.isNotFound) {
@@ -75,8 +76,8 @@ class K8sResourceHandler (
         return listOf(
             taskLauncher.submitJob(
                 resource = resource,
-                description = "applying k8s resource: ${spec.name} ",
-                correlationId = spec.name,
+                description = "applying k8s resource: ${spec.name()} ",
+                correlationId = spec.name(),
                 job = spec.job((resource.metadata["application"] as String), account)
             )
         )
@@ -88,7 +89,7 @@ class K8sResourceHandler (
             mapOf(
                 "moniker" to mapOf(
                     "app" to app,
-                    "location" to namespace
+                    "location" to namespace()
                 ),
                 "cloudProvider" to K8S_PROVIDER,
                 "credentials" to account,
