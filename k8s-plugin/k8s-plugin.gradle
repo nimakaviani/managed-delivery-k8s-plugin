@@ -3,23 +3,13 @@ apply plugin: "io.spinnaker.plugin.service-extension"
 apply plugin: "maven-publish"
 apply plugin: "kotlin"
 apply plugin: "kotlin-kapt"
+apply plugin: "kotlinx-serialization"
 
 sourceCompatibility = 11
 targetCompatibility = 11
 
 repositories {
-    jcenter() {
-        metadataSources {
-            artifact()
-            mavenPom()
-        }
-    }
-    gradlePluginPortal() {
-        metadataSources {
-            artifact()
-            mavenPom()
-        }
-    }
+    gradlePluginPortal()
     mavenCentral()
     if (property("korkVersion").toString().endsWith("-SNAPSHOT")) {
         mavenLocal()
@@ -36,7 +26,7 @@ spinnakerPlugin {
 
 dependencies {
     compileOnly(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
-    compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlinVersion}"
     compileOnly (group: 'com.netflix.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
     compileOnly (group: 'com.netflix.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
@@ -61,7 +51,7 @@ dependencies {
     testImplementation("dev.minutest:minutest")
 
     testRuntime ("org.junit.jupiter:junit-jupiter-engine:5.4.0")
-    testRuntime ("org.junit.platform:junit-platform-launcher:1.4.0")
+    testRuntime ("org.junit.platform:junit-platform-launcher:{$kotlinVersion}")
     testRuntime ("org.junit.platform:junit-platform-commons:1.5.2")
 }
 
@@ -71,7 +61,7 @@ tasks.withType(Test) {
 
 compileKotlin {
     kotlinOptions {
-        languageVersion = "1.3"
+        languageVersion = "1.4"
         jvmTarget = targetCompatibility
         freeCompilerArgs = ['-Xjvm-default=enable']
     }
@@ -79,7 +69,7 @@ compileKotlin {
 
 compileTestKotlin {
     kotlinOptions {
-        languageVersion = "1.3"
+        languageVersion = "1.4"
         jvmTarget = targetCompatibility
         freeCompilerArgs = ['-Xjvm-default=enable']
     }
