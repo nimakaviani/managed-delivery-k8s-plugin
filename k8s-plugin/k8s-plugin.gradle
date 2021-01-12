@@ -3,7 +3,6 @@ apply plugin: "io.spinnaker.plugin.service-extension"
 apply plugin: "maven-publish"
 apply plugin: "kotlin"
 apply plugin: "kotlin-kapt"
-apply plugin: "kotlinx-serialization"
 
 sourceCompatibility = 11
 targetCompatibility = 11
@@ -36,6 +35,7 @@ dependencies {
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-retrofit', version: "${keelVersion}")
     compileOnly (group: 'com.netflix.spinnaker.keel', name: 'keel-docker', version: "${keelVersion}")
     compileOnly (group: 'org.springframework', name: 'spring-context', version: '5.2.1.RELEASE')
+    compileOnly (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.12.1')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
 

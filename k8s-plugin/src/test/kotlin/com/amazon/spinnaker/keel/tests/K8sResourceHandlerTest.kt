@@ -13,7 +13,6 @@ import com.netflix.spinnaker.keel.orca.TaskRefResponse
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper
 import dev.minutest.junit.JUnit5Minutests
-import org.springframework.context.ApplicationEventPublisher
 import com.netflix.spinnaker.keel.test.resource
 import de.danielbechler.diff.node.DiffNode
 import de.danielbechler.diff.path.NodePath
@@ -168,7 +167,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     get("type").isEqualTo("deployManifest")
                 }
 
-                val resources = slot.captured.job.first()["manifests"] as List<K8sResourceTemplate>
+                val resources = slot.captured.job.first()["manifests"] as List<K8sObjectManifest>
                 expectThat(resources.first()) {
                     get { spec["replicas"] }.isEqualTo(2)
                 }

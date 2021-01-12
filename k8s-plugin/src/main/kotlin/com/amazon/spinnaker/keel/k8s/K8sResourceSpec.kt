@@ -9,12 +9,10 @@ import com.netflix.spinnaker.keel.api.artifacts.DOCKER
 import com.netflix.spinnaker.keel.docker.ContainerProvider
 import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
-typealias K8sSpec = MutableMap<String, Any?>
-
 data class K8sResourceSpec(
-    val container: ContainerProvider?,
-    val template: K8sResourceTemplate,
-    override val locations: SimpleLocations
+        val container: ContainerProvider?,
+        val template: K8sObjectManifest,
+        override val locations: SimpleLocations
 ) : ArtifactReferenceProvider, ResourceSpec, Locatable<SimpleLocations> {
 
     private val namespace: String = (template.metadata["namespace"] ?: "default") as String
@@ -36,18 +34,4 @@ data class K8sResourceSpec(
 
     override val artifactType: ArtifactType?
         get() = DOCKER
-}
-
-data class K8sResourceTemplate(
-    val apiVersion: String,
-    val kind: String,
-    val metadata: Map<String, Any?>,
-    val spec: K8sSpec
-) {
-    fun namespace(): String = (metadata["namespace"] ?: "default") as String
-    fun name(): String = metadata["name"] as String
-
-    // the kind qualified name is the format expected by the clouddriver
-    // e.g. "pod test" would indicate a pod of name "test"
-    fun kindQualifiedName(): String = "${kind.toLowerCase()} ${(metadata["name"] as String)}"
 }

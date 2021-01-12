@@ -1,14 +1,13 @@
 package com.amazon.spinnaker.keel.k8s
 
 import com.netflix.spinnaker.keel.api.Moniker
-import com.netflix.spinnaker.keel.api.SimpleLocations
 
 data class K8sResourceModel(
     val account: String,
     val artifacts: List<Any>?,
     val events: List<Any>?,
     val location: String?,
-    val manifest: Manifest,
+    val manifest: K8sObjectManifest,
     val metrics: List<Any>?,
     val moniker: Moniker?,
     val name: String?,
@@ -16,9 +15,18 @@ data class K8sResourceModel(
     val warnings: List<Any>?
 )
 
-data class Manifest(
+typealias K8sSpec = MutableMap<String, Any?>
+
+data class K8sObjectManifest(
     val apiVersion: String,
     val kind: String,
     val metadata: Map<String, Any?>,
-    val spec: Map<String, Any?>
-)
+    val spec: K8sSpec
+) {
+    fun namespace(): String = (metadata["namespace"] ?: "default") as String
+    fun name(): String = metadata["name"] as String
+
+    // the kind qualified name is the format expected by the clouddriver
+    // e.g. "pod test" would indicate a pod of name "test"
+    fun kindQualifiedName(): String = "${kind} ${(metadata["name"] as String)}"
+}
