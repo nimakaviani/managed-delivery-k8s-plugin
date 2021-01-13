@@ -65,6 +65,7 @@ class DockerImageResolver(
                 }
             }
         } else {
+            // TODO - fix setting the right reference
             val containers : ArrayList<MutableMap<String, String>> = (m["containers"] as ArrayList<MutableMap<String, String>>)
             containers.forEach{
                 it[key] = value

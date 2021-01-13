@@ -80,7 +80,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
             artifacts = emptyList(),
             events = emptyList(),
             location = "my-k8s-west-account",
-            manifest = Manifest(
+            manifest = K8sObjectManifest(
                 apiVersion = "apps/v1",
                 kind = "Deployment",
                 metadata = mapOf(
@@ -114,7 +114,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         )
                       )
                     )
-                )
+                ) as K8sSpec
             ),
             metrics = emptyList(),
             moniker = null,
@@ -148,7 +148,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns
                         K8sResourceModel(
                             "account", emptyList(), emptyList(), "default",
-                            Manifest("test", "test", emptyMap(), mutableMapOf()),
+                            K8sObjectManifest("test", "test", emptyMap(), mutableMapOf()),
                             emptyList(), Moniker("test"), "name", emptyMap(), emptyList()
                         )
             }
