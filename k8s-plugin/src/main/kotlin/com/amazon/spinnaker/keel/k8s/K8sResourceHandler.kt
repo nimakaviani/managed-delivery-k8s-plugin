@@ -9,14 +9,12 @@ import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
+import com.netflix.spinnaker.keel.docker.NullableReferenceProvider
 import com.netflix.spinnaker.keel.model.Job
 import com.netflix.spinnaker.keel.retrofit.isNotFound
 import kotlinx.coroutines.coroutineScope
-import org.slf4j.LoggerFactory
 import retrofit2.HttpException
 import kotlin.collections.ArrayList
-
-const val LAST_APPLIED_CONFIG: String = "kubectl.kubernetes.io/last-applied-configuration"
 
 class K8sResourceHandler (
     private val cloudDriverK8sService: CloudDriverK8sService,
@@ -35,8 +33,8 @@ class K8sResourceHandler (
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? {
         val clusterResource = cloudDriverK8sService.getK8sResource(resource) ?: return null
         val mapper = jacksonObjectMapper()
-        val lastAppliedConfig = (clusterResource.metadata["annotations"] as Map<String, String>)[LAST_APPLIED_CONFIG] as String
-        return sanitize(mapper.readValue<K8sObjectManifest>(lastAppliedConfig))
+        val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+        return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
     }
 
     private suspend fun CloudDriverK8sService.getK8sResource(
@@ -51,10 +49,10 @@ class K8sResourceHandler (
                     r.spec.template.kindQualifiedName()
                 ).toResourceModel()
 
-                val imageString = find(manifest.spec, "image") as String
-                getTag(imageString).let {
-                    log.info("Deployed artifact $imageString")
-                    notifyArtifactDeployed(r, it)
+                val imageString = find(manifest.spec, IMAGE) as String?
+                imageString?.let {
+                    log.info("Deployed artifact $it")
+                    notifyArtifactDeployed(r, getTag(it))
                 }
 
                 manifest
@@ -84,13 +82,12 @@ class K8sResourceHandler (
             return emptyList()
         }
 
-        val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String
-        if (!diff.hasChanges()) {
-            return emptyList()
+        val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String?
+        imageString?.let{
+            log.info("Deploying artifact $it")
+            notifyArtifactDeploying(resource, getTag(it))
         }
 
-        log.info("Deploying artifact $imageString")
-        notifyArtifactDeploying(resource, getTag(imageString))
         val spec = (diff.desired)
         val account = resource.spec.locations.account
 
@@ -121,42 +118,6 @@ class K8sResourceHandler (
                 "enableTraffic" to true.toString()
             )
         )
-
-    private fun sanitize(r: K8sObjectManifest): K8sObjectManifest {
-        val fluff = arrayOf(
-            "app.kubernetes.io/managed-by",
-            "app.kubernetes.io/name",
-            "artifact.spinnaker.io/location",
-            "artifact.spinnaker.io/name",
-            "artifact.spinnaker.io/type",
-            "artifact.spinnaker.io/version",
-            "moniker.spinnaker.io/cluster"
-        )
-
-        val labels = r.metadata["labels"] as MutableMap<String, Any>
-        val annotations = r.metadata["annotations"] as MutableMap<String, Any>
-        val template = r.spec["template"] as MutableMap<String, Any>
-
-        clean(labels, fluff)
-        clean(annotations, fluff)
-        clean(template, fluff)
-
-        if (labels.isEmpty()) (r.metadata as MutableMap<String, Any>).remove("labels")
-        if (annotations.isEmpty()) (r.metadata as MutableMap<String, Any>).remove("labels")
-        return r
-    }
-
-    private fun clean(m: MutableMap<String, Any>, keys: Array<String>) : MutableMap<*, *> {
-        keys.forEach{ key -> m.remove(key)}
-        m.forEach{
-            if (it.value is Map<*, *>) {
-                val r = it.value as MutableMap<String, Any>
-                clean(r, keys)
-            }
-        }
-
-        return m
-    }
 
     private fun getTag(imageString: String): String {
         val regex = """.*:(.+)""".toRegex()
