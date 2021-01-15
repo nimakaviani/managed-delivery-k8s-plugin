@@ -7,10 +7,10 @@ import com.netflix.spinnaker.keel.docker.ContainerProvider
 import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
 data class K8sResourceSpec(
-        val container: ContainerProvider?,
-        val metadata: Map<String, String>,
-        val template: K8sObjectManifest,
-        override val locations: SimpleLocations
+    val container: ContainerProvider?,
+    val metadata: Map<String, String>,
+    var template: K8sObjectManifest,
+    override val locations: SimpleLocations
 ) : ArtifactReferenceProvider, ResourceSpec, Locatable<SimpleLocations> {
 
     private val namespace: String = (template.metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String

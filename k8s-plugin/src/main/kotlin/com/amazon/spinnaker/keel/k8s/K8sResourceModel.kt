@@ -30,5 +30,5 @@ data class K8sObjectManifest(
 
     // the kind qualified name is the format expected by the clouddriver
     // e.g. "pod test" would indicate a pod of name "test"
-    fun kindQualifiedName(): String = "${kind} ${(metadata[NAME] as String)}"
+    fun kindQualifiedName(): String = "${kind.toLowerCase()} ${(metadata[NAME] as String)}"
 }

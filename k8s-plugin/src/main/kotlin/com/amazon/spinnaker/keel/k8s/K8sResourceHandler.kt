@@ -9,7 +9,6 @@ import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
-import com.netflix.spinnaker.keel.docker.NullableReferenceProvider
 import com.netflix.spinnaker.keel.model.Job
 import com.netflix.spinnaker.keel.retrofit.isNotFound
 import kotlinx.coroutines.coroutineScope
@@ -127,16 +126,14 @@ class K8sResourceHandler (
     }
 
     private fun find(m: MutableMap<String, Any?>, key: String): Any? {
-        if(m.containsKey(key)) return m[key]
+        m[key]?.let{ return it }
         m.forEach{
             if (it.value is Map<*, *>) {
-                val r = it.value as MutableMap<String, Any>
-                val value = find(r as MutableMap<String, Any?>, key)
-                if (value != null) return value
+                val r = it.value as MutableMap<String, Any?>
+                find(r, key)?.let{ it -> return it}
             } else if (it.value is ArrayList<*>) {
-                (it.value as ArrayList<Map<*, *>>).forEach{
-                    val value = find(it as MutableMap<String, Any?>, key)
-                    if (value != null) return value
+                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
+                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
                 }
             }
         }

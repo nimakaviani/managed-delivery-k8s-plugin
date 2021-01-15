@@ -1,8 +1,8 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
-import com.netflix.spinnaker.keel.api.Moniker
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
@@ -14,15 +14,20 @@ import com.netflix.spinnaker.keel.persistence.KeelRepository
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper
 import dev.minutest.junit.JUnit5Minutests
 import com.netflix.spinnaker.keel.test.resource
+import okhttp3.ResponseBody
 import de.danielbechler.diff.node.DiffNode
 import de.danielbechler.diff.path.NodePath
 import dev.minutest.rootContext
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
+import retrofit2.HttpException
+import org.springframework.http.HttpStatus
+import retrofit2.Response
 import strikt.api.expectThat
 import strikt.assertions.get
 import strikt.assertions.isEqualTo
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 @Suppress("UNCHECKED_CAST")
 internal class K8sResourceHandlerTest : JUnit5Minutests {
@@ -50,15 +55,15 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |locations:
         |  account: my-k8s-west-account
         |  regions: []
+        |metadata:
+        |  application: test
         |template:
         |  apiVersion: "apps/v1"
         |  kind: Deployment
         |  metadata:
         |    name: hello-kubernetes
-        |    annotations:
-        |      moniker.spinnaker.io/application: spinmd
         |  spec:
-        |    replicas: 2
+        |    replicas: REPLICA
         |    selector:
         |      matchLabels:
         |        app: hello-kubernetes
@@ -69,12 +74,20 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |      spec:
         |        containers:
         |        - name: hello-kubernetes
-        |          image: paulbouwer/hello-kubernetes:1.8
+        |          image: nimak/helloworld:0.1
         |          ports:
         |          - containerPort: 8080
     """.trimMargin()
 
-    private fun resourceModel(replicas: Int = 2) : K8sResourceModel {
+    private val spec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+    private val resource = resource(
+        kind = com.amazon.spinnaker.keel.k8s.K8S_RESOURCE_SPEC_V1.kind,
+        spec = spec
+    )
+
+    private fun resourceModel(replicas: Int = 1) : K8sResourceModel {
+        val mapper = jacksonObjectMapper()
+        val lastApplied = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: ${replicas}"), K8sResourceSpec::class.java)
         return K8sResourceModel(
             account = "my-k8s-west-account",
             artifacts = emptyList(),
@@ -86,55 +99,26 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 metadata = mapOf(
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
-                        "moniker.spinnaker.io/application" to "spinmd"
+                        K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = mapOf(
-                    "replicas" to replicas,
-                    "selector" to mapOf(
-                        "matchLabels" to mapOf(
-                            "app" to "hello-kubernetes"
-                        )
-                    ),
-                    "template" to mapOf(
-                        "metadata" to mapOf(
-                          "labels" to mapOf(
-                                "app" to "hello-kubernetes"
-                                )
-                            ),
-                      "spec" to mapOf(
-                        "containers" to listOf(
-                            mapOf(
-                                "name" to "hello-kubernetes",
-                                "image" to "paulbouwer/hello-kubernetes:1.8",
-                                "ports" to listOf(
-                                    mapOf("containerPort" to 8080)
-                                )
-                            )
-                        )
-                      )
-                    )
-                ) as K8sSpec
+                spec = LinkedHashMap<String?, Any>() as K8sSpec
             ),
             metrics = emptyList(),
             moniker = null,
-            name = "spinmd",
+            name = "test",
             status = emptyMap(),
             warnings = emptyList()
         )
     }
 
-    private val spec = yamlMapper.readValue(yaml, K8sResourceSpec::class.java)
-    private val resource = resource(
-        kind = com.amazon.spinnaker.keel.k8s.K8S_RESOURCE_SPEC_V1.kind,
-        spec = spec
-    )
 
     fun tests() = rootContext<K8sResourceHandler> {
         fixture {
             K8sResourceHandler(
                 cloudDriverK8sService,
                 taskLauncher,
+                publisher,
                 resolvers
             )
         }
@@ -145,12 +129,9 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context("K8s resource does not exist"){
             before {
-                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns
-                        K8sResourceModel(
-                            "account", emptyList(), emptyList(), "default",
-                            K8sObjectManifest("test", "test", emptyMap(), mutableMapOf()),
-                            emptyList(), Moniker("test"), "name", emptyMap(), emptyList()
-                        )
+                val notFound: Response<Object> = Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } throws
+                        HttpException(notFound)
             }
 
             test("the resource is created with a generated defaultAction as none are in the spec") {
@@ -169,7 +150,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
                 val resources = slot.captured.job.first()["manifests"] as List<K8sObjectManifest>
                 expectThat(resources.first()) {
-                    get { spec["replicas"] }.isEqualTo(2)
+                    get { spec["replicas"] }.isEqualTo(1)
                 }
 
                 expectThat(resources.first()) {
@@ -200,7 +181,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context("the K8s resource has been updated") {
             before {
-                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(1)
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(2)
             }
 
             test("the diff reflects the new spec and is upserted") {
