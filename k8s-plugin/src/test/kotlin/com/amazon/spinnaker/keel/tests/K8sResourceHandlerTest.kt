@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.tests
 import com.amazon.spinnaker.keel.k8s.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
+import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
@@ -27,7 +28,6 @@ import strikt.api.expectThat
 import strikt.assertions.get
 import strikt.assertions.isEqualTo
 import java.util.*
-import kotlin.collections.LinkedHashMap
 
 @Suppress("UNCHECKED_CAST")
 internal class K8sResourceHandlerTest : JUnit5Minutests {
@@ -102,7 +102,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = LinkedHashMap<String?, Any>() as K8sSpec
+                spec = emptyMap<String, Any>() as K8sSpec
             ),
             metrics = emptyList(),
             moniker = null,
@@ -159,6 +159,31 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
                 expectThat(resources.first()) {
                     get{ kindQualifiedName() }.isEqualTo("deployment hello-kubernetes")
+                }
+            }
+
+            test("a deploying event fires") {
+                runBlocking {
+                    val current = current(resource)
+                    val desired = desired(resource)
+                    upsert(resource, DefaultResourceDiff(desired = desired, current = current))
+                }
+
+                verify(atLeast = 1) { publisher.publishEvent(ArtifactVersionDeploying(resource.id,  "0.1")) }
+            }
+
+            test("resolving a diff creates a new k8s resource") {
+                runBlocking {
+                    val current = current(resource)
+                    val desired = desired(resource)
+                    upsert(resource, DefaultResourceDiff(desired = desired, current = current))
+                }
+
+                val slot = slot<OrchestrationRequest>()
+                coVerify { orcaService.orchestrate(resource.serviceAccount, capture(slot)) }
+
+                expectThat(slot.captured.job.first()) {
+                    get("type").isEqualTo("deployManifest")
                 }
             }
         }

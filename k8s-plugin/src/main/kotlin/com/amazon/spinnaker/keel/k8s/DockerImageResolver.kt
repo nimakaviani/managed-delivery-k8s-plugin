@@ -1,13 +1,16 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NoDigestFound
+import com.amazon.spinnaker.keel.k8s.exception.NotLinked
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.artifacts.DockerArtifact
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverService
 import com.netflix.spinnaker.keel.docker.ContainerProvider
+import com.netflix.spinnaker.keel.docker.DigestProvider
 import com.netflix.spinnaker.keel.docker.DockerImageResolver
-import com.netflix.spinnaker.keel.docker.NullableReferenceProvider
+import com.netflix.spinnaker.keel.docker.ReferenceProviders
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import kotlinx.coroutines.runBlocking
 import org.springframework.stereotype.Component
@@ -23,7 +26,7 @@ class DockerImageResolver(
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
     override fun getContainerFromSpec(resource: Resource<K8sResourceSpec>) =
-        if (resource.spec.container != null) resource.spec.container as ContainerProvider else NullableReferenceProvider(null)
+        if (resource.spec.container != null) resource.spec.container as ContainerProvider else ReferenceProviders()
 
     override fun getAccountFromSpec(resource: Resource<K8sResourceSpec>) =
         resource.spec.deriveRegistry()
@@ -35,7 +38,8 @@ class DockerImageResolver(
         tag: String
     ): Resource<K8sResourceSpec> {
         val resourceTemplate = (resource.spec.template.spec[TEMPLATE] as MutableMap<String, Any>)
-        val updatedMap = this.setValue(resourceTemplate, IMAGE, "${artifact.organization}/${artifact.image}:${tag}")
+        val updatedMap = setValue(resourceTemplate, IMAGE, artifact.reference,
+            "${artifact.organization}/${artifact.image}:${tag}")
         resource.spec.template.spec[TEMPLATE] = updatedMap
         return resource
     }
@@ -54,20 +58,21 @@ class DockerImageResolver(
             img.digest ?: ""
         }
 
-    private fun setValue(m: MutableMap<String, Any>, key: String, value: String) : MutableMap<*, *> {
+    private fun setValue(m: MutableMap<String, Any>, key: String, reference: String, value: String) : MutableMap<*, *> {
         if (!m.containsKey(CONTAINERS)) {
             m.forEach{
                 if (it.value is Map<*, *>) {
                     val childMap: MutableMap<String, Any> = (it.value as MutableMap<String, Any>)
-                    val fixedMap = this.setValue(childMap, key, value)
+                    val fixedMap = this.setValue(childMap, key, reference, value)
                     m[it.key] = fixedMap
                 }
             }
         } else {
-            // TODO - fix setting the right reference
             val containers : ArrayList<MutableMap<String, String>> = (m[CONTAINERS] as ArrayList<MutableMap<String, String>>)
-            containers.forEach{
-                it[key] = value
+            containers.filter { it[key] == reference }.also{
+                if(it.size > 1) throw DuplicateReference(reference)
+                if(it.isEmpty()) throw NotLinked(reference)
+                it.first()[key] = value
             }
         }
         return m
