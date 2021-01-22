@@ -117,7 +117,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
         lateinit var deploymentSpec : Resource<K8sResourceSpec>
         lateinit var deliveryConfig : DeliveryConfig
 
-        context("for k8s delivery config manifests") {
+        context("for k8s delivery config manifests with approved artifacts") {
             before {
                 coEvery { clouddriverService.findDockerImages("test-registry", "spkr/main", "0.0.1", null) } returns
                         listOf(DockerImage("test-registry", "spkr/main", "0.0.1", "sha:1111"))
@@ -127,7 +127,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
             }
 
 
-            context("for a k8s resource with a single containers") {
+            context("for a k8s resource with a single container") {
                 before {
                     deploymentSpec = deploymentSpec(
                         references = mutableSetOf("main-container"),
@@ -160,16 +160,10 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                     } returns "0.0.2"
                 }
 
-                context("there is a version approved for the main artifact") {
-                    before {
-//
-                    }
-
-                    test("the main contianer is resolved correctly") {
-                        val resolvedResource = this.invoke(deploymentSpec)
-                        expect {
-                            that(getImageWithName(resolvedResource, "main")).isEqualTo("spkr/main:0.0.1")
-                        }
+                test("the main contianer is resolved correctly") {
+                    val resolvedResource = this.invoke(deploymentSpec)
+                    expect {
+                        that(getImageWithName(resolvedResource, "main")).isEqualTo("spkr/main:0.0.1")
                     }
                 }
             }
