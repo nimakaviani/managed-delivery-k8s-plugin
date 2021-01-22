@@ -252,7 +252,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                     } returns "0.0.2"
                 }
 
-                test("both containers are resolved correctly") {
+                test("a NotLinked exception is thrown") {
                     expectThrows<NotLinked> { this.invoke(deploymentSpec) }
                 }
             }
@@ -295,7 +295,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                     } returns "0.0.2"
                 }
 
-                test("both containers are resolved correctly") {
+                test("a DuplicateReference exception is thrown") {
                     expectThrows<DuplicateReference> { this.invoke(deploymentSpec) }
                 }
             }
