@@ -34,10 +34,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
     private val cloudDriverK8sService = mockk<CloudDriverK8sService>()
     private val orcaService = mockk<OrcaService>()
     private val publisher: EventPublisher = mockk(relaxUnitFun = true)
-    private val repository = mockk<KeelRepository> {
-        // we're just using this to get notifications
-        every { environmentFor(any()) } returns Environment("test")
-    }
+    private val repository = mockk<KeelRepository>()
 
     private val taskLauncher = OrcaTaskLauncher(
         orcaService,
@@ -125,6 +122,11 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         before{
             coEvery { orcaService.orchestrate("keel@spinnaker", any()) } returns TaskRefResponse("/tasks/${UUID.randomUUID()}")
+            every { repository.environmentFor(any()) } returns Environment("test")
+        }
+
+        after {
+            clearAllMocks()
         }
 
         context("K8s resource does not exist"){
