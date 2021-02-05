@@ -35,6 +35,8 @@ PLUGIN_PATH="./build/distributions"
 PLUGIN_FILE="$PLUGIN_PATH/$PLUGIN_FILE_NAME"
 TEMP_FILE="temp.json"
 
+version=$(cat gradle.properties | grep version | cut -d= -f2)
+
 [ -d "$PLUGIN_PATH" ] || (echo "cannot find $PLUGIN_PATH. script needs to run in root plugin dir" && exit 1)
 
 rm -rf $PLUGIN_PATH/*
@@ -44,14 +46,14 @@ rm -rf $TEMP_FILE,$TEMP_PLUGIN_FILE
 ./gradlew releaseBundle
 
 # update plugins.json
-cat $PLUGIN_PATH/plugin-info.json | jq -r '.releases |= map( . + '{\"url\":\"https://$BUCKET.$REGION.amazonaws.com/managed-delivery-k8s-plugin-0.0.1.zip\"}')' > $TEMP_PLUGIN_FILE
+cat $PLUGIN_PATH/plugin-info.json | jq -r '.releases |= map( . + '{\"url\":\"https://$BUCKET.$REGION.amazonaws.com/managed-delivery-k8s-plugin-${version}.zip\"}')' > $TEMP_PLUGIN_FILE
 echo [] >> $PLUGIN_FILE;
 jq 'reduce inputs as $i (.; .[0] = $i)' "$PLUGIN_FILE" "$TEMP_PLUGIN_FILE" > "$TEMP_FILE";
 mv $TEMP_FILE $PLUGIN_FILE
 
 # upload artifacts to s3
 aws s3 cp $PLUGIN_FILE s3://$BUCKET/$PLUGIN_FILE_NAME
-aws s3 cp $PLUGIN_PATH/managed-delivery-k8s-plugin* s3://$BUCKET/managed-delivery-k8s-plugin-0.0.1.zip
+aws s3 cp $PLUGIN_PATH/managed-delivery-k8s-plugin* s3://$BUCKET/managed-delivery-k8s-plugin-${version}.zip
 
 # nuke temp files
 rm -rf $TEMP_FILE

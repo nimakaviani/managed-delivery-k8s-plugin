@@ -56,7 +56,7 @@ class K8sResourceHandler (
 
                 manifest
             } catch (e: HttpException) {
-                if (e.isNotFound) {
+                if (e.code() == 404) {
                     null
                 } else {
                     throw e
