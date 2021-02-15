@@ -13,7 +13,7 @@ import retrofit2.http.Path
 interface CloudDriverK8sService {
     @GET("/manifests/{account}/{namespace}/{resource}")
     suspend fun getK8sResource(
-        @Header("X-SPINNAKER-ACCOUNTS") acc: String,
+        @Header("X-SPINNAKER-USER") acc: String,
         @Path("account") account: String,
         @Path("namespace") namespace: String,
         @Path("resource") resource: String
