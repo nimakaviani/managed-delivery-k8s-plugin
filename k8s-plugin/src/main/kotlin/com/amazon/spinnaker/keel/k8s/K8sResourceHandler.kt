@@ -42,7 +42,7 @@ class K8sResourceHandler (
         coroutineScope {
             try {
                 val manifest = getK8sResource(
-                    r.spec.locations.account,
+                    r.serviceAccount,
                     r.spec.locations.account,
                     r.spec.template.namespace(),
                     r.spec.template.kindQualifiedName()
