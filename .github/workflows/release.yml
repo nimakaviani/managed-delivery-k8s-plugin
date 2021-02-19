@@ -38,7 +38,7 @@ jobs:
         run: ./gradlew test
 
       - name: build
-        run: ./gradlew releaseBundle && ls -la ./build/distributions
+        run: if ! [[ -z ${VERSION:?} ]]; then echo "Building release version ${VERSION}"; fi && ./gradlew -Pversion=$VERSION releaseBundle && ls -la ./build/distributions
 
       - name: create release
         id: create_release
@@ -66,8 +66,7 @@ jobs:
         id: mutate-package-info
         env:
           ARTIFACT_URL: https://github.com/${{ steps.get_project_info.outputs.REPO }}/releases/download/${{ steps.get_project_info.outputs.VERSION }}/${{ steps.get_project_info.outputs.PROJECT }}-${{ steps.get_project_info.outputs.VERSION }}.zip
-          VERSION: ${{ steps.get_project_info.outputs.VERSION }}
-        run: cat ./build/distributions/plugin-info.json | jq -r --arg VERSION "$VERSION" '.releases |= map(if .version == $VERSION then . + '{\"url\":\"$ARTIFACT_URL\"}' else . end)' > ./plugins-temp.json 
+        run: cat ./build/distributions/plugin-info.json | jq -r --arg URL $ARTIFACT_URL '.releases[0] |= . + {"url":$URL}' > ./plugins-temp.json 
 
       - name: merge plugins.json
         id: merge-plugin-repository
