@@ -27,6 +27,14 @@
         "sha512sum": "eab2897fb54b6dbbf0b4f9e06a124302e5f8484ae174ea2e820631764e40456f0dbf54f0d4f944255e25eca39053d271cfe0ca55768670b2dc4c6e2631a65080",
         "preferred": false,
         "url": "https://github.com/nimakaviani/managed-delivery-k8s-plugin/releases/download/0.0.3/managed-delivery-k8s-plugin-0.0.3.zip"
+      },
+      {
+        "version": "0.0.4",
+        "date": "2021-02-19T22:48:40.841415Z",
+        "requires": "orca>=0.0.0",
+        "sha512sum": "d8bb23e7a8bcab8e70a0f6c6edb48ee97f387ad5b19575df1f46533623400eca415ee439b9067d5ae2a42675fbbd0779fd72822f14d2379e9bbf543176f0318f",
+        "preferred": false,
+        "url": "https://github.com/nimakaviani/managed-delivery-k8s-plugin/releases/download/0.0.4/managed-delivery-k8s-plugin-0.0.4.zip"
       }
     ]
   }
