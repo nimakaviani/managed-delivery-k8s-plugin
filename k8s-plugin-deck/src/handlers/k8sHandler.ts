@@ -10,11 +10,8 @@ class k8sResourceHandler implements IResourceKindConfig {
 
     public displayLink(): ((resource: IManagedResourceSummary) => string) {
         return function (resource: IManagedResourceSummary) {
-            const baseUrl = `${window.location.protocol}//${window.location.host}`
-            // const path = `#/applications/${resource.moniker?.app}/loadBalancers`
-            // currently k8s plugin doesn't return moniker field
-            const path = `#/applications/moretest/loadBalancers`
-            const params = `?acct=${resource.locations.account}`
+            const path = `#/applications/${resource.moniker?.app}/loadBalancers`
+            const params = `?acct=${resource.locations?.account}`
             return `${path}${params}`
         }
     }
