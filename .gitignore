@@ -28,3 +28,5 @@ clouddriver-oracle-bmcs/bmcs-sdk
 gatling.conf
 .DS_Store
 /plugins/
+node_modules
+yarn.lock
