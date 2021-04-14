@@ -1,6 +1,9 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
+import com.amazon.spinnaker.keel.k8s.resolver.K8sResourceHandler
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
 import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
@@ -131,7 +134,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context("K8s resource does not exist"){
             before {
-                val notFound: Response<Object> = Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+                val notFound: Response<Any> = Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
                 coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } throws
                         HttpException(notFound)
             }

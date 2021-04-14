@@ -1,5 +1,6 @@
-package com.amazon.spinnaker.keel.k8s
+package com.amazon.spinnaker.keel.k8s.model
 
+import com.amazon.spinnaker.keel.k8s.*
 import com.netflix.spinnaker.keel.api.*
 import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
 import com.netflix.spinnaker.keel.api.artifacts.DOCKER
