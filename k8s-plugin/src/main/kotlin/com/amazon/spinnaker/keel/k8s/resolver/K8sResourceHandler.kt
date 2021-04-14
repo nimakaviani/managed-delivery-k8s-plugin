@@ -1,5 +1,7 @@
-package com.amazon.spinnaker.keel.k8s
+package com.amazon.spinnaker.keel.k8s.resolver
 
+import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
@@ -10,7 +12,6 @@ import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.model.Job
-import com.netflix.spinnaker.keel.retrofit.isNotFound
 import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 import kotlin.collections.ArrayList

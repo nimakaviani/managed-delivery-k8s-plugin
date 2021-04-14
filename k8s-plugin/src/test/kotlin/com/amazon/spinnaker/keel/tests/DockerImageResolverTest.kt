@@ -3,6 +3,8 @@ package com.amazon.spinnaker.keel.tests;
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NotLinked
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.resolver.DockerImageResolver
 import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Environment
 import com.netflix.spinnaker.keel.api.Resource
@@ -22,7 +24,6 @@ import io.mockk.mockk
 import strikt.api.expect
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
-import java.util.ArrayList
 
 @Suppress("UNCHECKED_CAST")
 internal class DockerImageResolverTest : JUnit5Minutests {

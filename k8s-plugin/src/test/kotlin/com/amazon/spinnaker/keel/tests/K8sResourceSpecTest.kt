@@ -1,6 +1,6 @@
 package com.amazon.spinnaker.keel.tests
 
-import com.amazon.spinnaker.keel.k8s.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper

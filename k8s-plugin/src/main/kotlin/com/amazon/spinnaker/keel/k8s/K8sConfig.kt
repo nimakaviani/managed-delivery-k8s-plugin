@@ -1,5 +1,6 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.netflix.spinnaker.keel.api.plugins.kind
 
 val K8S_RESOURCE_SPEC_V1 = kind <K8sResourceSpec>("k8s/resource@v1")

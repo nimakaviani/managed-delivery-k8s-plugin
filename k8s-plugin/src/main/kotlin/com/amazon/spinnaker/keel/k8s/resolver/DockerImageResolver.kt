@@ -1,8 +1,10 @@
-package com.amazon.spinnaker.keel.k8s
+package com.amazon.spinnaker.keel.k8s.resolver
 
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NoDigestFound
 import com.amazon.spinnaker.keel.k8s.exception.NotLinked
+import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.artifacts.DockerArtifact
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
@@ -31,10 +33,10 @@ class DockerImageResolver(
         resource.spec.deriveRegistry()
 
     override fun updateContainerInSpec(
-        resource: Resource<K8sResourceSpec>,
-        container: ContainerProvider,
-        artifact: DockerArtifact,
-        tag: String
+            resource: Resource<K8sResourceSpec>,
+            container: ContainerProvider,
+            artifact: DockerArtifact,
+            tag: String
     ): Resource<K8sResourceSpec> {
         val resourceTemplate = (resource.spec.template.spec[TEMPLATE] as MutableMap<String, Any>)
         val updatedMap = setValue(resourceTemplate, IMAGE, artifact.reference,
