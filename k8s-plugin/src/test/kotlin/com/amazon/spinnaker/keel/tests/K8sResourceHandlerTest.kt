@@ -26,6 +26,7 @@ import io.mockk.*
 import kotlinx.coroutines.runBlocking
 import retrofit2.HttpException
 import org.springframework.http.HttpStatus
+import org.springframework.core.env.Environment as SpringEnv
 import retrofit2.Response
 import strikt.api.expectThat
 import strikt.assertions.get
@@ -38,11 +39,13 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
     private val orcaService = mockk<OrcaService>()
     private val publisher: EventPublisher = mockk(relaxUnitFun = true)
     private val repository = mockk<KeelRepository>()
+    private val springEnv: SpringEnv = mockk(relaxUnitFun = true)
 
     private val taskLauncher = OrcaTaskLauncher(
         orcaService,
         repository,
-        publisher
+        publisher,
+        springEnv
     )
     private val yamlMapper = configuredYamlMapper()
 
@@ -126,6 +129,9 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         before{
             coEvery { orcaService.orchestrate("keel@spinnaker", any()) } returns TaskRefResponse("/tasks/${UUID.randomUUID()}")
             every { repository.environmentFor(any()) } returns Environment("test")
+            every {
+                springEnv.getProperty("keel.notifications.slack", Boolean::class.java, true)
+            } returns false
         }
 
         after {
