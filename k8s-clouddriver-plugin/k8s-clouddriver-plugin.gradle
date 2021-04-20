@@ -39,6 +39,20 @@ dependencies {
     compileOnly (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.12.1')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
+
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
+    testImplementation (group: 'com.netflix.spinnaker.clouddriver', name: 'clouddriver-security', version: "${clouddriverVersion}")
+    testImplementation (group: 'com.netflix.spinnaker.clouddriver', name: 'clouddriver-core', version: "${clouddriverVersion}")
+    testImplementation (group: 'com.netflix.spinnaker.clouddriver', name: 'clouddriver-api', version: "${clouddriverVersion}")
+    testImplementation (group: 'com.netflix.spinnaker.clouddriver', name: 'clouddriver-artifacts', version: "${clouddriverVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-exceptions', version: "${korkVersion}")
+    testImplementation ("org.junit.jupiter:junit-jupiter-api:5.5.2")
+    testImplementation (group: 'io.strikt', name: 'strikt-core', version: '0.22.1')
+    testImplementation (group: 'dev.minutest', name: 'minutest', version: '1.10.0')
+    testImplementation (group: 'io.mockk', name: 'mockk', version: '1.9.3')
+//    testImplementation ("dev.minutest:minutest")
+    testImplementation (group: 'org.yaml', name: 'snakeyaml', version: '1.28')
 }
 
 tasks.withType(Test) {

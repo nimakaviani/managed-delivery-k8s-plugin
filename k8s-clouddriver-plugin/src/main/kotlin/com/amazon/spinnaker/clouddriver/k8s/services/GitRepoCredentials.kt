@@ -12,7 +12,7 @@ import java.io.File
 
 class GitRepoCredentials(
     private val artifactCredentialsRepository: ArtifactCredentialsRepository,
-    val pluginConfig: PluginConfig
+    private val pluginConfig: PluginConfig
 ) {
 
     private val executorField = GitRepoArtifactCredentials::class.java.getDeclaredField("executor")
@@ -32,13 +32,13 @@ class GitRepoCredentials(
                 val account = executor.account
                 val repo = GitRepo(
                     account.name,
-                    getReposForAccount(account.name),
                     account.token,
                     account.username,
                     account.password,
+                    repos = getReposForAccount(account.name)
                 )
                 if (!account.sshPrivateKeyFilePath.isNullOrEmpty()) {
-                    repo.sshKey = readSSHKey(account.sshPrivateKeyFilePath)
+                    repo.sshPrivateKey = readSSHKey(account.sshPrivateKeyFilePath)
                 }
                 return@mapNotNull repo
             }
@@ -53,15 +53,14 @@ class GitRepoCredentials(
                 val account = executor.account
                 val out = GitRepo(
                     name,
-                    getReposForAccount(name),
                     account.token,
                     account.username,
                     account.password,
+                    repos = getReposForAccount(name),
                 )
                 if (!account.sshPrivateKeyFilePath.isNullOrEmpty()) {
-                    out.sshKey = readSSHKey(account.sshPrivateKeyFilePath)
+                    out.sshPrivateKey = readSSHKey(account.sshPrivateKeyFilePath)
                 }
-                logger.info(pluginConfig.toString())
                 return out
             }
         } catch (e: MissingCredentialsException) {
@@ -70,11 +69,15 @@ class GitRepoCredentials(
         }
     }
 
-    // Might need to set a maximum size
-    private fun readSSHKey(filePath: String): String {
+    // SSH Key files should be less than 16KB in size with 16384 bits. ECC keys should be much smaller.
+    private fun readSSHKey(filePath: String, maxSize: Int = 16384): String {
         val file = File(filePath)
         if (!file.exists() || !file.isFile) {
             logger.info("key file, {}, does not exist", file)
+            return ""
+        }
+        if (maxSize <= 0 || file.length().toInt() > maxSize) {
+            logger.debug("file size is larger than maxsize of {} or max size is less than 0", maxSize)
             return ""
         }
         return file.readText()

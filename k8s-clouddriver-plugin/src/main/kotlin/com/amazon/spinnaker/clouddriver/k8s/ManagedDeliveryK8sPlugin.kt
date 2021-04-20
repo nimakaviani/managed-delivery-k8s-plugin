@@ -13,13 +13,6 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : SpringLoaderPlugin(wrap
         log.info("stopping ManagedDelivery k8s plugin.")
     }
 
-    //    override fun registerBeanDefinitions(registry: BeanDefinitionRegistry?) {
-//        listOf(
-//            beanDefinitionFor(CredentialsDetails::class.java)
-//        ).forEach {
-//            registerBean(it, registry)
-//        }
-//    }
     override fun getPackagesToScan(): List<String> {
         return listOf(
             "com.amazon.spinnaker.clouddriver.k8s"

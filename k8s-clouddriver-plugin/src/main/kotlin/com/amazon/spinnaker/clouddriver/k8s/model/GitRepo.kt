@@ -1,10 +1,15 @@
 package com.amazon.spinnaker.clouddriver.k8s.model
 
 data class GitRepo(
-    val name: String,
-    val repositories: List<String>,
-    val token: String = "",
-    val userName: String = "",
-    val password: String = "",
-    var sshKey: String = ""
+    var name: String = "",
+    var token: String = "",
+    var username: String = "",
+    var password: String = "",
+    var sshPrivateKeyFilePath: String = "",
+    var sshPrivateKeyPassphrase: String = "",
+    var sshPrivateKeyPassphraseCmd: String = "",
+    var sshKnownHostsFilePath: String = "",
+    var sshTrustUnknownHosts: Boolean = false,
+    var repos: List<String> = emptyList(),
+    var sshPrivateKey: String = ""
 )
