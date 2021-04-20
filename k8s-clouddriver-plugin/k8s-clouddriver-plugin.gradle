@@ -49,9 +49,7 @@ dependencies {
     testImplementation (group: 'io.spinnaker.kork', name: 'kork-exceptions', version: "${korkVersion}")
     testImplementation ("org.junit.jupiter:junit-jupiter-api:5.5.2")
     testImplementation (group: 'io.strikt', name: 'strikt-core', version: '0.22.1')
-    testImplementation (group: 'dev.minutest', name: 'minutest', version: '1.10.0')
     testImplementation (group: 'io.mockk', name: 'mockk', version: '1.9.3')
-//    testImplementation ("dev.minutest:minutest")
     testImplementation (group: 'org.yaml', name: 'snakeyaml', version: '1.28')
 }
 
