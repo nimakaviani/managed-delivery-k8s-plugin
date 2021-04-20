@@ -5,6 +5,6 @@ data class GitRepo(
     val repositories: List<String>,
     val token: String = "",
     val userName: String = "",
-    val password: String= "",
-    val sshKey: String = ""
+    val password: String = "",
+    var sshKey: String = ""
 )
