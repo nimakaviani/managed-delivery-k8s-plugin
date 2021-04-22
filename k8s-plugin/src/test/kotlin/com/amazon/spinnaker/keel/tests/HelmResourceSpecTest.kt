@@ -1,5 +1,6 @@
 package com.amazon.spinnaker.keel.tests
 
+import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -9,7 +10,7 @@ import dev.minutest.rootContext
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 
-internal object K8sResourceSpecTests : JUnit5Minutests {
+internal object HelmResourceSpecTest : JUnit5Minutests {
 
     data class Fixture(
         val mapper: ObjectMapper = configuredYamlMapper(),
@@ -17,53 +18,41 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
     )
 
     fun tests() = rootContext<Fixture> {
-        context("a simple K8s resource definition in yaml") {
+        context("a simple Helm resource definition in yaml") {
             fixture {
                 Fixture(
                     yaml = """
                         |---
+                        |chart:
+                        |  reference: something
                         |locations:
                         |  account: my-k8s-west-account
                         |  regions: []
                         |metadata:
                         |  application: test
                         |template:
-                        |  apiVersion: "apps/v1"
-                        |  kind: Deployment
+                        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
+                        |  kind: HelmRepository
                         |  metadata:
-                        |    name: hello-kubernetes
-                        |    annotations:
-                        |      moniker.spinnaker.io/application: spinmd
+                        |      name: crossplane-master
                         |  spec:
-                        |    replicas: 2
-                        |    selector:
-                        |      matchLabels:
-                        |        app: hello-kubernetes
-                        |    template:
-                        |      metadata:
-                        |        labels:
-                        |          app: hello-kubernetes
-                        |      spec:
-                        |        containers:
-                        |        - name: hello-kubernetes
-                        |          image: paulbouwer/hello-kubernetes:1.8
-                        |          ports:
-                        |          - containerPort: 8080
+                        |      interval: 5m
+                        |      url: https://charts.crossplane.io/master
                     """.trimMargin()
                 )
             }
 
-            derivedContext<K8sResourceSpec>("when deserialized") {
+            derivedContext<HelmResourceSpec>("when deserialized") {
                 deriveFixture {
                     mapper.readValue(yaml)
                 }
 
-                test("can be deserialized to a K8s object") {
+                test("can be deserialized to a Helm object") {
                     expectThat(this)
-                        .get { template.spec["replicas"] }.isEqualTo(2)
+                        .get { template.spec["interval"] }.isEqualTo("5m")
                 }
 
-                test("uses default namespace for k8s resource when namespace missing") {
+                test("uses default namespace for Helm resource when namespace missing") {
                     expectThat(this)
                         .get { template.namespace() }.isEqualTo("default")
                 }
@@ -71,6 +60,11 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
                 test("stores correct application metadata from the spec") {
                     expectThat(this)
                         .get { metadata["application"] }.isEqualTo("test")
+                }
+
+                test("has chart information properly stored") {
+                    expectThat(this)
+                        .get { chart?.reference }.isEqualTo("something")
                 }
             }
         }

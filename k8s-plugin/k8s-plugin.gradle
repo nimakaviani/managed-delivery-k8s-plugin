@@ -39,6 +39,7 @@ dependencies {
     compileOnly (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.12.1')
 
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
+    implementation("io.github.microutils:kotlin-logging:1.12.0")
 
     testImplementation (group: 'io.spinnaker.keel', name: 'keel-core', version: "${keelVersion}")
     testImplementation (group: 'io.spinnaker.keel', name: 'keel-api', version: "${keelVersion}")
