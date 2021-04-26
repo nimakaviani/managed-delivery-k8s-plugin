@@ -32,6 +32,8 @@ import retrofit2.Response
 import strikt.api.expectThat
 import strikt.assertions.get
 import strikt.assertions.isEqualTo
+import strikt.assertions.isFalse
+import strikt.assertions.isTrue
 import java.util.*
 
 @Suppress("UNCHECKED_CAST")
@@ -85,7 +87,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
     private val spec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
     private val resource = resource(
-        kind = com.amazon.spinnaker.keel.k8s.K8S_RESOURCE_SPEC_V1.kind,
+        kind = K8S_RESOURCE_SPEC_V1.kind,
         spec = spec
     )
 
@@ -123,6 +125,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 cloudDriverK8sService,
                 taskLauncher,
                 publisher,
+                orcaService,
                 resolvers
             )
         }
@@ -162,7 +165,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
                 val resources = slot.captured.job.first()["manifests"] as List<K8sObjectManifest>
                 expectThat(resources.first()) {
-                    get { spec["replicas"] }.isEqualTo(1)
+                    get { spec?.get("replicas") }.isEqualTo(1)
                 }
 
                 expectThat(resources.first()) {
@@ -244,6 +247,23 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
                 expectThat(slot.captured.job.first()) {
                     get("type").isEqualTo("deployManifest")
+                }
+            }
+        }
+
+        context("actuation in progress") {
+            before {
+                coEvery { orcaService.getCorrelatedExecutions("hello-kubernetes") } returnsMany listOf(
+                    listOf("executionId1"), emptyList()
+                )
+            }
+
+            test("should indicate if actuation is in progress") {
+                runBlocking {
+                    val result = actuationInProgress(resource)
+                    val result2 = actuationInProgress(resource)
+                    expectThat(result).isTrue()
+                    expectThat(result2).isFalse()
                 }
             }
         }

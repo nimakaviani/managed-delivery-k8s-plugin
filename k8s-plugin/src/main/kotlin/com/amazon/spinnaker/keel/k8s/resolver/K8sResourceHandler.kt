@@ -15,6 +15,7 @@ import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.model.Job
+import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 import kotlin.collections.ArrayList
@@ -23,9 +24,10 @@ class K8sResourceHandler (
     override val cloudDriverK8sService: CloudDriverK8sService,
     override val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
+    orcaService: OrcaService,
     override val resolvers: List<Resolver<*>>
 ) : GenericK8sResourceHandler<K8sResourceSpec, K8sObjectManifest>(
-    cloudDriverK8sService, taskLauncher, eventPublisher, resolvers
+    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers
 ) {
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
@@ -48,7 +50,7 @@ class K8sResourceHandler (
                 // notify change to the k8s vanilla image artifact based
                 // on retrieved data
                 manifest?.let {
-                    val imageString = find(it.spec, IMAGE) as String?
+                    val imageString = it.spec?.let { it1 -> find(it1, IMAGE) } as String?
                     imageString?.let {
                         log.info("Deployed artifact $it")
                         notifyArtifactDeployed(r as Resource<K8sResourceSpec>, getTag(it))

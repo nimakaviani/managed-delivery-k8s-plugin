@@ -68,7 +68,7 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
 
                 test("can be deserialized to a K8s object") {
                     expectThat(this)
-                        .get { template.spec["replicas"] }.isEqualTo(2)
+                        .get { template.spec?.get("replicas") }.isEqualTo(2)
                 }
 
                 test("uses default namespace for k8s resource when namespace missing") {

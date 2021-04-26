@@ -9,15 +9,17 @@ import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
+import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 
 class HelmResourceHandler(
     override val cloudDriverK8sService: CloudDriverK8sService,
     override val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
+    orcaService: OrcaService,
     override val resolvers: List<Resolver<*>>
 ) : GenericK8sResourceHandler<HelmResourceSpec, K8sObjectManifest>(
-    cloudDriverK8sService, taskLauncher, eventPublisher, resolvers
+    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers
 ) {
     override val supportedKind = HELM_RESOURCE_SPEC_V1
 

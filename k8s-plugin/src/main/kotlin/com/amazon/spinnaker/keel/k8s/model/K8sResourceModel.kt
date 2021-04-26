@@ -17,13 +17,15 @@ data class K8sResourceModel(
 )
 
 typealias K8sSpec = MutableMap<String, Any?>
+typealias K8sData = MutableMap<String, Any>
 
 data class K8sObjectManifest(
     val apiVersion: String,
     val kind: String,
     @get:ExcludedFromDiff
     val metadata: Map<String, Any?>,
-    val spec: K8sSpec
+    val spec: K8sSpec?,
+    val data: K8sData? = null
 ) {
     fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
     fun name(): String = metadata[NAME] as String

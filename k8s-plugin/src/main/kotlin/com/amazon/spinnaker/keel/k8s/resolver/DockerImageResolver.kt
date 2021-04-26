@@ -38,10 +38,10 @@ class DockerImageResolver(
             artifact: DockerArtifact,
             tag: String
     ): Resource<K8sResourceSpec> {
-        val resourceTemplate = (resource.spec.template.spec[TEMPLATE] as MutableMap<String, Any>)
+        val resourceTemplate = (resource.spec.template.spec?.get(TEMPLATE) as MutableMap<String, Any>)
         val updatedMap = setValue(resourceTemplate, IMAGE, artifact.reference,
             "${artifact.organization}/${artifact.image}:${tag}")
-        resource.spec.template.spec[TEMPLATE] = updatedMap
+        resource.spec.template.spec!![TEMPLATE] = updatedMap
         return resource
     }
 
