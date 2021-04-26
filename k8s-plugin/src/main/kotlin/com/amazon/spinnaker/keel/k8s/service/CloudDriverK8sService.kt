@@ -1,5 +1,6 @@
-package com.amazon.spinnaker.keel.k8s
+package com.amazon.spinnaker.keel.k8s.service
 
+import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.config.DefaultServiceEndpoint
 import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider

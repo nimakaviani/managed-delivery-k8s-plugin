@@ -1,9 +1,11 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.netflix.spinnaker.keel.api.plugins.kind
 
-val K8S_RESOURCE_SPEC_V1 = kind <K8sResourceSpec>("k8s/resource@v1")
+val K8S_RESOURCE_SPEC_V1  = kind <K8sResourceSpec>("k8s/resource@v1")
+val HELM_RESOURCE_SPEC_V1 = kind <HelmResourceSpec>("k8s/helm@v1")
 
 const val K8S_PROVIDER = "kubernetes"
 const val SOURCE_TYPE = "text"

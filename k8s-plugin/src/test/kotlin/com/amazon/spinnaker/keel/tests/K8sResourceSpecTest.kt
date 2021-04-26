@@ -9,7 +9,7 @@ import dev.minutest.rootContext
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 
-internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
+internal object K8sResourceSpecTests : JUnit5Minutests {
 
     data class Fixture(
         val mapper: ObjectMapper = configuredYamlMapper(),
@@ -58,6 +58,14 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
                     mapper.readValue(yaml)
                 }
 
+                test("name matches the specification") {
+                    expectThat(this).get { id }.isEqualTo("my-k8s-west-account-default-deployment-hello-kubernetes")
+                }
+
+                test("name matches the specification") {
+                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account-default-deployment-hello-kubernetes")
+                }
+
                 test("can be deserialized to a K8s object") {
                     expectThat(this)
                         .get { template.spec["replicas"] }.isEqualTo(2)
@@ -68,7 +76,7 @@ internal object ApplicationLoadBalancerSpecTests : JUnit5Minutests {
                         .get { template.namespace() }.isEqualTo("default")
                 }
 
-                test("uses default namespace for k8s resource when namespace missing") {
+                test("stores correct application metadata from the spec") {
                     expectThat(this)
                         .get { metadata["application"] }.isEqualTo("test")
                 }
