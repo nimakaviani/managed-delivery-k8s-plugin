@@ -58,6 +58,14 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
                     mapper.readValue(yaml)
                 }
 
+                test("name matches the specification") {
+                    expectThat(this).get { id }.isEqualTo("my-k8s-west-account-default-deployment-hello-kubernetes")
+                }
+
+                test("name matches the specification") {
+                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account-default-deployment-hello-kubernetes")
+                }
+
                 test("can be deserialized to a K8s object") {
                     expectThat(this)
                         .get { template.spec["replicas"] }.isEqualTo(2)
