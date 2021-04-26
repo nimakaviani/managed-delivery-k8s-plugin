@@ -1,5 +1,13 @@
 # Managed Delivery K8s Plugin
 
+## Requirements
+
+The managed delivery Kubernetes plugin now integrates with Keel v0.189.0.
+
+It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
+version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),
+you can also follow instructions on deploying the [CI Build Plugin](https://github.com/nimakaviani/ci-build-plugin).
+
 ## Configuration
 Add the following to `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load plugin.
 ```yaml
@@ -17,7 +25,9 @@ spinnaker:
 ```
 ## Delivery Config Manifest
 
-The skeleton for a delivery config manifest in Spinnaker managed delivery looks like the following:
+By defining the _Delivery Config Manifest_, you can control the deployment and progression of resources to different
+environments (e.g. staging or production), and between environments via constraints.
+The skeleton for a delivery config manifest in Spinnaker's managed delivery looks like the following:
 
 ```yaml
 name: # delivery config name
@@ -32,30 +42,34 @@ environments:
     resources: [] # list of resources to be deployed
 ```
 
-More details on the above can be found on the corresponding [Spinnaker Documentation](https://spinnaker.io/guides/user/managed-delivery/getting-started/) page.
+While the above snippet shows the skeleton for a delivery config manifest,
+we skip details on different parts of the manifest here.
+More details on the above can be found on the corresponding
+[Spinnaker Documentation](https://spinnaker.io/guides/user/managed-delivery/getting-started/) page.
 
-## Deploying Kubernetes Resources
+## Deploying to Kubernetes
 
-Support for delploying Kubernets resources in the plugin is split into two parts:
-- Supporting vanilla Kubernetes resources
-- Tracking and continuous rollout of containers associated with Kubernetes resources
+Support for Kubernetes deployments in the plugin is split into several parts:
+- Deploying vanilla Kubernetes resources
+- Deploying and tracking container artifacts
+- Deploying HELM charts
 
-The remainder of this section walks you through specifying resources and artifacts to your 
-managed delivery manifest.
+Details on each of the above can be found in sections below:
 
-### Deploying Vanilla Kubernetes Resources
+<details>
+<summary>Deploying Vanilla Kubernetes Resources</summary>
 
-The Support for vanilla Kubernetes resources is enabled by having the plugin introduce the new
-resource type `k8s/resource@v1` for processing of Kubernetes resources in a delivery configuration.
+The support for vanilla Kubernetes resources is enabled by having the plugin introduce the new
+resource type `k8s/resource@v1` for processing of Kubernetes resources in a delivery config manifest.
 The structure of the Kubernetes resource looks like the following:
 
 ```yaml
 resources:
-- kind: k8s/resource@v1 # indicating a vanilla Kubernets resource
+- kind: k8s/resource@v1 # the versioned vanilla Kubernetes resource
   spec:
     metadata:
-      application: # Spinnaker application the resource belongs to
-    template: {} # the vanilla YAML document for a Kubernetes resource      
+      application: # The Spinnaker application name this resource belongs to
+    template: {} # the vanilla YAML document for a Kubernetes resource
 ```
 
 Consider the following as an example of a Kubernetes service:
@@ -84,8 +98,8 @@ resources:
           app: hello
 ```
 
-Assuming that this needs to be deployed to a `test` environment, with a Kubernetes account 
-already configured in your Spinnaker _CloudDriver_, the environment definition in your delivery
+Assuming that this needs to be deployed to a `test` environment, with a Kubernetes account
+already configured in your _CloudDriver_ service, the environment definition in your delivery
 manifest could be as follows:
 
 ```yaml
@@ -117,22 +131,39 @@ environments:
               app: hello
 ```
 
-if you need more Kubernetes resources to be deployed to this environment, you can expand the list of 
-resources.
+if you need more Kubernetes resources to be deployed to this environment, you can expand the list of
+resources by adding more items to the list.
+</details>
 
-### Deploying Kubernetes Resources and Tracking Artifacts
+<details>
+<summary>Deploying and Tracking Container Artifacts</summary>
 
 One biggest advantage of Spinnaker's managed delivery is its ability to track artifacts and enforce
-rollouts to resources it manages when the artifacts change.
+rollouts to resources it manages when artifacts change.
 
 If you want to use this plugin to manage rollout of artifacts to Kubernetes, first _CloudDriver_ needs to
-be configured to know about these Docker repositories (see configuration section).
+be configured to know about these Docker repositories.
+
+**IMPORTANT**: _The Managed Delivery K8s plugin currently only supports one `account` name to be
+associated with a resource. In order for the container registry account to be used in combination with the
+Kubernetes account (hence, two accounts for a resource), conventionally the container registry account should be named as
+follows `[K8-ACCOUNT-NAME]-registry`, where `[K8-ACCOUNT-NAME]` should be identical to the name used for the
+Kubernetes account._
+
+```yaml
+dockerRegistry:
+accounts:
+- address: https://index.docker.io # example registry
+  name: "[K8s-ACCOUNT-NAME]-registry"
+  repositories:
+  - example/service
+```
 
 To have managed delivery track artifacts, you first introduce them under the delivery config:
 
 ```yaml
 artifacts:
-- name: nimak/helloworld
+- name: example/service
   type: docker
   reference: my-docker-artifact
   tagVersionStrategy: semver-tag
@@ -146,7 +177,7 @@ resources:
 - kind: k8s/resource@v1
   spec:
     container:
-      reference: my-docker-artifact # indicates use of artifact in the resource
+      reference: my-docker-artifact # indicates the use of artifact in the resource
     metadata:
       application: spinmd
     template:
@@ -154,7 +185,7 @@ resources:
       kind: Deployment
       metadata:
         name: my-app-deployment
-        namespace: default            
+        namespace: default
       spec:
         replicas: 1
         selector:
@@ -163,7 +194,7 @@ resources:
         template:
           metadata:
             labels:
-              app: hello                
+              app: hello
           spec:
             containers:
             - name: hello
@@ -172,20 +203,37 @@ resources:
               - containerPort: 8080
 ```
 
-The same `reference` name is used for the artifact, under `container.reference` in the Kubernetes 
+The same `reference` name is used for the artifact under `container.reference` in the Kubernetes
 resource `spec`, and also in place of the `image` name for the respective Kubernetes resource. This
 enabled the plugin to know exactly which artifact should be use with which resource and where, particularly
 where a given resource can deploy multiple artifacts (e.g. for Kubernetes deployments with sidecars or
 init containers).
 
-## Deploying HELM charts
+Multiple artifacts can be referenced in a given Kubernetes resource by listing all the artifact references in
+the `spec` and then referring to those references in the corresponding resource `image` reference:
+
+```yaml
+resources:
+- kind: k8s/resource@v1
+  spec:
+    container:
+      references:
+      - my-docker-artifact1
+      - my-docker-artifact2
+```
+
+</details>
+
+<details>
+<summary>Deploying HELM charts</summary>
 
 The plugin relies on [Flux2](https://github.com/fluxcd/flux2) for deployment of HELM resources.
 This relieves the plugin from having to deal with the heavy lifting of managing changes to HELM charts
-where that can be delegated to the vibrant flux ecosystem.
+where that can be delegated to flux.
 
 In order to get HELM deployments working, first you need to install [Flux2](https://github.com/fluxcd/flux2)
-_helm controller_ and _source controller_ into your cluster, with the following command:
+_helm controller_ and _source controller_ into your cluster, with the following command (assuming that you
+have Flux2 CLI already installed):
 
 ```bash
 flux install \
@@ -195,7 +243,10 @@ flux install \
 ```
 
 Once the controllers are installed, adding a HELM repository and a HELM release to a delivery config manifest
-is similar to how it is done for Kubernetes resources. Below, an example is shown for _crossplane_.
+is similar to how it is done for Kubernetes resources. The managed delivery resource kind however, needs
+to be updated to `k8s/helm@v1`, indicating deployment of a HELM chart using the plugin.
+
+Below, an example is shown for _Crossplane_.
 
 ```yaml
 resources:
@@ -212,6 +263,7 @@ resources:
       spec:
           interval: 5m
           url: https://charts.crossplane.io/master
+
 - kind: k8s/helm@v1
   spec:
     metadata:
@@ -236,10 +288,11 @@ resources:
         interval: 1m
         install:
           remediation:
-            retries: 3 
+            retries: 3
 ```
 
-**Note:** _Tracking of charts on HELM repositories is not yet supported in the plugin_. 
+**Note:** _Tracking of charts on HELM repositories is not yet supported in the plugin_.
+</details>
 
 ## Build
 run `./gradlew releaseBundle` and copy the created zip file to
@@ -260,3 +313,7 @@ spinnaker:
     repositories: {}
     strict-plugin-loading: false
 ```
+
+For use against a remote cluster, you can use the script under `./hack/build.sh` to build and
+upload the plugin to an S3 bucket and use the corresponding URL as a reference when
+configuring Keel in your cluster.
