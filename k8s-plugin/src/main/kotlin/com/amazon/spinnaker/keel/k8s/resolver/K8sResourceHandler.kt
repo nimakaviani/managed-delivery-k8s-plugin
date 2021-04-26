@@ -4,6 +4,7 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
