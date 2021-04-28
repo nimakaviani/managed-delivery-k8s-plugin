@@ -56,7 +56,6 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |  regions: []
         |metadata:
         |  application: test
-        |name: test
         |namespace: test-ns
         |account: test-git-repo
     """.trimMargin()
@@ -99,7 +98,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     val result = toResolvedType(resource)
                     val annotations = result.metadata["annotations"] as Map<String, String>
                     expectThat(result.metadata) {
-                        hasEntry("name", "test")
+                        hasEntry("name", "test-git-repo")
                         hasEntry("namespace", "test-ns")
                     }
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
@@ -163,7 +162,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     apiVersion = "v1",
                     kind = "Secret",
                     metadata = mapOf(
-                        "name" to "test",
+                        "name" to "test-git-repo",
                     ),
                     spec = mutableMapOf<String, Any>() as K8sSpec
                 )
@@ -173,7 +172,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                         any(),
                         "my-k8s-west-account",
                         "test-ns",
-                        "secret test"
+                        "secret test-git-repo"
                     )
                 } returnsMany listOf(
                     K8sResourceModel("", null, null, null, manifest, null, null, null, null, null),
@@ -183,7 +182,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             test("should return manifest") {
                 runBlocking {
                     val result = current(resource)
-                    expectThat(result!!.metadata["name"]).isEqualTo("test")
+                    expectThat(result!!.metadata["name"]).isEqualTo("test-git-repo")
                 }
             }
         }
@@ -198,7 +197,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                         any(),
                         "my-k8s-west-account",
                         "test-ns",
-                        "secret test"
+                        "secret test-git-repo"
                     )
                 } throws HttpException(notFound)
             }
@@ -213,7 +212,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
 
         context("actuation is in progress") {
             before {
-                coEvery { orcaService.getCorrelatedExecutions(resource.spec.name) } returnsMany listOf(
+                coEvery { orcaService.getCorrelatedExecutions(resource.spec.account) } returnsMany listOf(
                     listOf("executionId1"), emptyList()
                 )
             }

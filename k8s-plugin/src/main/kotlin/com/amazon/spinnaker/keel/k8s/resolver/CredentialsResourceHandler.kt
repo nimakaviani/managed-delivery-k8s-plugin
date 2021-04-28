@@ -56,7 +56,7 @@ class CredentialsResourceHandler(
             "Secret",
             mapOf(
                 "namespace" to resource.spec.namespace,
-                "name" to resource.spec.name,
+                "name" to resource.spec.account,
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
             ),
             null,
@@ -71,7 +71,7 @@ class CredentialsResourceHandler(
                 resource.serviceAccount,
                 resource.spec.locations.account,
                 resource.spec.namespace,
-                "secret ${resource.spec.name}"
+                "secret ${resource.spec.account}"
             )
             log.debug("response from clouddriver: $res manifest: ${res.manifest}")
             return res.manifest
@@ -90,7 +90,7 @@ class CredentialsResourceHandler(
     }
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
-        resource.spec.name.let {
+        resource.spec.account.let {
             log.debug(resource.toString())
             val a = orcaService.getCorrelatedExecutions(it)
             log.debug("actuation in progress? ${a.isNotEmpty()}: $a")

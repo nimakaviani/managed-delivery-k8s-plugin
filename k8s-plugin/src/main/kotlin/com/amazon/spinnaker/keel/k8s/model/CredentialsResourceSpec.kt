@@ -8,6 +8,5 @@ data class CredentialsResourceSpec(
     override val metadata: Map<String, String>,
     override val template: K8sObjectManifest?,
     override val namespace: String,
-    val name: String,
     val account: String
 ) : GenericK8sLocatable
