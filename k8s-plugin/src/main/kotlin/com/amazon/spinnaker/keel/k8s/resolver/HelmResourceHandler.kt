@@ -36,4 +36,10 @@ class HelmResourceHandler(
             // from the k8s cluster
             cloudDriverK8sService.getK8sResource(r) ?: null
         }
+
+    override suspend fun actuationInProgress(resource: Resource<HelmResourceSpec>): Boolean =
+        resource
+            .spec.template.let {
+                orcaService.getCorrelatedExecutions(it.name()).isNotEmpty()
+            }
 }

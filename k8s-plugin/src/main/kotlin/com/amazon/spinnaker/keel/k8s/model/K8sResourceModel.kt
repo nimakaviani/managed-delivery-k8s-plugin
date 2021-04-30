@@ -17,7 +17,14 @@ data class K8sResourceModel(
 )
 
 typealias K8sSpec = MutableMap<String, Any?>
-typealias K8sData = MutableMap<String, Any>
+
+data class K8sData(
+    val account: String? = null,
+    val username: String? = null,
+    val password: String? = null,
+    val identity: String? = null
+)
+
 
 data class K8sObjectManifest(
     val apiVersion: String,

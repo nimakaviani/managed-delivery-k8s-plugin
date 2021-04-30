@@ -56,8 +56,14 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |  regions: []
         |metadata:
         |  application: test
-        |namespace: test-ns
-        |account: test-git-repo
+        |template:
+        |  apiVersion: v1
+        |  kind: Secret
+        |  metadata:
+        |    namespace: test-ns
+        |    type: git
+        |  data:
+        |    account: test-git-repo
     """.trimMargin()
     private val spec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
     private val resource = resource(
@@ -98,14 +104,14 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     val result = toResolvedType(resource)
                     val annotations = result.metadata["annotations"] as Map<String, String>
                     expectThat(result.metadata) {
-                        hasEntry("name", "test-git-repo")
+                        hasEntry("name", "git-test-git-repo")
                         hasEntry("namespace", "test-ns")
                     }
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                     expectThat(
-                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
-                    expectThat(result.data?.get("password")).isEqualTo("")
+                    expectThat(result.data?.password).isEqualTo("")
                 }
             }
 
@@ -113,10 +119,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
                 }
             }
@@ -125,7 +131,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.get("identity") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.identity as String).toString(Charsets.UTF_8)
                     ).isEqualTo(privateKey)
                 }
             }
@@ -134,10 +140,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
                     expectThat(
-                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
                     ).isEqualTo("")
                 }
             }
@@ -146,12 +152,12 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
-                    expectThat(result.data?.get("identity")).isNull()
+                    expectThat(result.data?.identity).isNull()
                 }
             }
         }
@@ -172,7 +178,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                         any(),
                         "my-k8s-west-account",
                         "test-ns",
-                        "secret test-git-repo"
+                        "secret git-test-git-repo"
                     )
                 } returnsMany listOf(
                     K8sResourceModel("", null, null, null, manifest, null, null, null, null, null),
@@ -197,7 +203,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                         any(),
                         "my-k8s-west-account",
                         "test-ns",
-                        "secret test-git-repo"
+                        "secret git-test-git-repo"
                     )
                 } throws HttpException(notFound)
             }
@@ -212,7 +218,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
 
         context("actuation is in progress") {
             before {
-                coEvery { orcaService.getCorrelatedExecutions(resource.spec.account) } returnsMany listOf(
+                coEvery { orcaService.getCorrelatedExecutions("git-test-git-repo") } returnsMany listOf(
                     listOf("executionId1"), emptyList()
                 )
             }

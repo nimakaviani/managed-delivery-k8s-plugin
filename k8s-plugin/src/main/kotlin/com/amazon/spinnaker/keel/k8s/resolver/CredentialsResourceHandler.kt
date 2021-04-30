@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.K8sData
 import com.amazon.spinnaker.keel.k8s.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -23,44 +24,46 @@ class CredentialsResourceHandler(
     private val encoder: Base64.Encoder = Base64.getMimeEncoder()
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sObjectManifest {
-        val cred = cloudDriverK8sService.getCredentialsDetails(resource.serviceAccount, resource.spec.account)
-        val data: MutableMap<String, String> = mutableMapOf()
+        val cred = cloudDriverK8sService.getCredentialsDetails(resource.serviceAccount, resource.spec.template.data?.account as String)
+        val data: K8sData
         // Priority: token > password > ssh key
         when {
             cred.token.isNotBlank() -> {
                 log.debug("populating token with username in manifest")
-                data.putAll(
-                    mapOf(
-                        "username" to encoder.encodeToString(cred.token.toByteArray()),
-                        "password" to ""
-                    )
+                data = K8sData(
+                    username = encoder.encodeToString(cred.token.toByteArray()),
+                    password = ""
                 )
             }
             cred.username.isNotBlank() -> {
                 log.debug("populating username and password in manifest")
-                data.putAll(
-                    mapOf(
-                        "username" to encoder.encodeToString(cred.username.toByteArray()),
-                        "password" to encoder.encodeToString(cred.password.toByteArray())
-                    )
+                data = K8sData(
+                    username = encoder.encodeToString(cred.username.toByteArray()),
+                    password = encoder.encodeToString(cred.password.toByteArray())
                 )
             }
             cred.sshPrivateKey.isNotBlank() -> {
                 log.debug("populating private key in manifest")
-                data.putAll(mapOf("identity" to encoder.encodeToString(cred.sshPrivateKey.toByteArray())))
+                data = K8sData(
+                    identity = encoder.encodeToString(cred.sshPrivateKey.toByteArray())
+                )
+            }
+            else -> {
+                log.info("token, username/password, or ssh key was returned by clouddriver")
+                data = K8sData()
             }
         }
         // setting strategy.spinnaker.io/versioned is needed to avoid creating secrets with versioned names e.g. testing1-v000
         return K8sObjectManifest(
-            "v1",
+            resource.spec.template.apiVersion,
             "Secret",
             mapOf(
                 "namespace" to resource.spec.namespace,
-                "name" to resource.spec.account,
+                "name" to "${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}",
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
             ),
             null,
-            data as MutableMap<String, Any>?
+            data
         )
     }
 
@@ -71,7 +74,7 @@ class CredentialsResourceHandler(
                 resource.serviceAccount,
                 resource.spec.locations.account,
                 resource.spec.namespace,
-                "secret ${resource.spec.account}"
+                "secret ${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}"
             )
             log.debug("response from clouddriver: $res manifest: ${res.manifest}")
             return res.manifest
@@ -90,9 +93,9 @@ class CredentialsResourceHandler(
     }
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
-        resource.spec.account.let {
+        resource.spec.template.data?.account.let {
             log.debug(resource.toString())
-            val a = orcaService.getCorrelatedExecutions(it)
+            val a = orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}")
             log.debug("actuation in progress? ${a.isNotEmpty()}: $a")
             a.isNotEmpty()
         }

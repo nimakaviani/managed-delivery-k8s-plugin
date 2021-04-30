@@ -81,9 +81,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
 
         val spec = (diff.desired)
         val account = resource.spec.locations.account
-        log.info("upserting....")
-        log.info(spec.toString())
-        log.info(spec.metadata.toString())
+        log.debug("upserting. spec: $spec")
         return listOf(
             taskLauncher.submitJob(
                 resource = resource,
@@ -93,12 +91,6 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
             )
         )
     }
-
-    override suspend fun actuationInProgress(resource: Resource<S>): Boolean =
-        resource
-            .spec.template?.let {
-                orcaService.getCorrelatedExecutions(it.name()).isNotEmpty()
-            }  ?: false
 
     fun R.job(app: String, account: String): Job =
         Job(

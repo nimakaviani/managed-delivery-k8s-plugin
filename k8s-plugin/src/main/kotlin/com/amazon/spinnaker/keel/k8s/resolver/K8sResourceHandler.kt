@@ -97,4 +97,11 @@ class K8sResourceHandler (
         }
         return null
     }
+
+    override suspend fun actuationInProgress(resource: Resource<K8sResourceSpec>): Boolean =
+        resource
+            .spec.template.let {
+                orcaService.getCorrelatedExecutions(it.name()).isNotEmpty()
+            }
+
 }
