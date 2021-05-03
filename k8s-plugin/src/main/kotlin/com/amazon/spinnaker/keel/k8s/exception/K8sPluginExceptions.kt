@@ -15,3 +15,5 @@ class DuplicateReference(reference: String) :
 class NotLinked(reference: String) :
     IntegrationException("contianer with reference $reference is not linked in resource. " +
             "resource image should have the same value as the container image for references to be linked")
+class CouldNotRetrieveCredentials(accountName: String, e :Throwable? = null) :
+    ResourceCurrentlyUnresolvable("could not retrieve account named $accountName in clouddriver", e)

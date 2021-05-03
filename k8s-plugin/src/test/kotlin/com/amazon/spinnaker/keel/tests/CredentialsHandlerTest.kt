@@ -4,6 +4,7 @@ import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
 import com.amazon.spinnaker.keel.k8s.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.K8sSpec
+import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
@@ -27,8 +28,10 @@ import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus
 import retrofit2.HttpException
 import retrofit2.Response
+import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.assertions.*
+import java.net.SocketTimeoutException
 import java.util.*
 
 @Suppress("UNCHECKED_CAST")
@@ -158,6 +161,58 @@ class CredentialsHandlerTest : JUnit5Minutests {
                         decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
                     expectThat(result.data?.identity).isNull()
+                }
+            }
+        }
+
+        context("credentials does not exist") {
+            val notFound: Response<Any> =
+                Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+            before {
+                clearMocks(cloudDriverK8sService)
+                coEvery { cloudDriverK8sService.getCredentialsDetails(any(), "test-git-repo") } throws HttpException(
+                    notFound
+                )
+            }
+
+            test("should throw NoCredentialFound error") {
+                runBlocking {
+                    expectCatching { toResolvedType(resource) }.failed().isA<CouldNotRetrieveCredentials>()
+                }
+            }
+        }
+
+        context("clouddriver failure") {
+            val failed: Response<Any> =
+                Response.error(HttpStatus.GATEWAY_TIMEOUT.value(), ResponseBody.create(null, "not found"))
+            before {
+                clearMocks(cloudDriverK8sService)
+                coEvery { cloudDriverK8sService.getCredentialsDetails(any(), "test-git-repo") } throws HttpException(
+                    failed
+                )
+            }
+
+            test("should throw NoCredentialFound") {
+                runBlocking {
+                    expectCatching { toResolvedType(resource) }.failed().isA<CouldNotRetrieveCredentials>()
+                }
+            }
+        }
+
+        context("cannot reach clouddriver failure") {
+            before {
+                clearMocks(cloudDriverK8sService)
+                coEvery {
+                    cloudDriverK8sService.getCredentialsDetails(
+                        any(),
+                        "test-git-repo"
+                    )
+                } throws SocketTimeoutException("oh nose")
+            }
+
+            test("should throw SocketTimeoutException") {
+                runBlocking {
+                    expectCatching { toResolvedType(resource) }.failed().isA<SocketTimeoutException>()
                 }
             }
         }

@@ -3,7 +3,9 @@ package com.amazon.spinnaker.keel.k8s.resolver
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
 import com.amazon.spinnaker.keel.k8s.K8sData
 import com.amazon.spinnaker.keel.k8s.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
@@ -24,7 +26,19 @@ class CredentialsResourceHandler(
     private val encoder: Base64.Encoder = Base64.getMimeEncoder()
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sObjectManifest {
-        val cred = cloudDriverK8sService.getCredentialsDetails(resource.serviceAccount, resource.spec.template.data?.account as String)
+        val cred: GitRepoAccountDetails
+        try {
+            cred = cloudDriverK8sService.getCredentialsDetails(
+                resource.serviceAccount,
+                resource.spec.template.data?.account as String
+            )
+        } catch (e: HttpException) {
+            if (e.code() >= 300) {
+                throw CouldNotRetrieveCredentials(resource.spec.template.data?.account as String, e)
+            } else {
+                throw e
+            }
+        }
         val data: K8sData
         // Priority: token > password > ssh key
         when {
@@ -49,7 +63,7 @@ class CredentialsResourceHandler(
                 )
             }
             else -> {
-                log.info("token, username/password, or ssh key was returned by clouddriver")
+                log.info("token, username/password, or ssh key was not returned by clouddriver")
                 data = K8sData()
             }
         }
@@ -95,7 +109,8 @@ class CredentialsResourceHandler(
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
         resource.spec.template.data?.account.let {
             log.debug(resource.toString())
-            val a = orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}")
+            val a =
+                orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}")
             log.debug("actuation in progress? ${a.isNotEmpty()}: $a")
             a.isNotEmpty()
         }
