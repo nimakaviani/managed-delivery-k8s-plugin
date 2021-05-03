@@ -1,6 +1,5 @@
 package com.amazon.spinnaker.clouddriver.k8s
 
-import com.amazon.spinnaker.clouddriver.k8s.configuration.PluginConfig
 import com.amazon.spinnaker.clouddriver.k8s.exceptions.ResourceNotFound
 import com.amazon.spinnaker.clouddriver.k8s.services.GitRepoCredentials
 import com.netflix.spinnaker.clouddriver.artifacts.ArtifactCredentialsRepository
@@ -28,9 +27,9 @@ class GitRepoCredentialsTest {
         val configFile = javaClass.getResource("/testConfig.yaml")
         val resourcePath = File(configFile.file).absoluteFile.parent
         val file = configFile.readText()
-        val pluginConfig = Yaml().loadAs(file, PluginConfig::class.java)
-        gitRepoCredentials = GitRepoCredentials(artifactCredentialsRepository, pluginConfig)
-        credentialsInRepo = pluginConfig.accounts.map {
+        val gitRepos = Yaml().loadAs(file, GitArtifacts::class.java)
+        gitRepoCredentials = GitRepoCredentials(artifactCredentialsRepository)
+        credentialsInRepo = gitRepos.accounts.map {
             if (it.sshPrivateKeyFilePath.isNotEmpty()) {
                 it.sshPrivateKeyFilePath = "$resourcePath/${it.sshPrivateKeyFilePath}"
             }
@@ -70,7 +69,6 @@ class GitRepoCredentialsTest {
         val result = gitRepoCredentials.getCredentials("git-repo")
         expectThat(result.name).isEqualTo("git-repo")
         expectThat(result.token).isEqualTo("token1")
-        expectThat(result.repos).isEmpty()
     }
 
     @Test
@@ -86,7 +84,6 @@ class GitRepoCredentialsTest {
             isNotEmpty()
             startsWith("-----BEGIN OPENSSH PRIVATE KEY-----\n")
         }
-        expectThat(result.repos).hasSize(2)
     }
 
     @Test
@@ -99,7 +96,6 @@ class GitRepoCredentialsTest {
         } returns credentialsInRepo.first { it.name == "git-repo-with-invalid-key" }
         val result = gitRepoCredentials.getCredentials("git-repo-with-invalid-key")
         expectThat(result.sshPrivateKey).isEmpty()
-        expectThat(result.repos).hasSize(2)
     }
 
     @Test

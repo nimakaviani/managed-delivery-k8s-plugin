@@ -10,6 +10,5 @@ data class GitRepo(
     var sshPrivateKeyPassphraseCmd: String = "",
     var sshKnownHostsFilePath: String = "",
     var sshTrustUnknownHosts: Boolean = false,
-    var repos: List<String> = emptyList(),
     var sshPrivateKey: String = ""
 )

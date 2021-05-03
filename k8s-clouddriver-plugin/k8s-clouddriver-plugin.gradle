@@ -1,4 +1,3 @@
-import org.gradle.api.tasks.testing.Test
 
 apply plugin: "java-library"
 apply plugin: "io.spinnaker.plugin.service-extension"

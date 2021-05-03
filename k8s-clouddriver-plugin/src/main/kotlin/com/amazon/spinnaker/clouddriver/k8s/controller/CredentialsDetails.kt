@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.RestController
 class CredentialsDetails(
     private val gitRepoCredentials: GitRepoCredentials,
 ) {
-    private lateinit var gitRepoArtifactCredentials: List<GitRepoArtifactCredentials>
-    private val logger = LoggerFactory.getLogger(CredentialsDetails::class.java)
 
     @GetMapping(
         path = ["/gitRepo/{name}"],

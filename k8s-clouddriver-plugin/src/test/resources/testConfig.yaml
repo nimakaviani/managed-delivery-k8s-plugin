@@ -3,16 +3,8 @@ accounts:
     token: token1
   - name: git-repo2
     token: token2
-    repos:
-      - "nabuskey/test"
   - name: git-repo-with-key
     sshPrivateKeyFilePath: test.pem
-    repos:
-      - "test/test"
-      - "test/test1"
   - name: git-repo-with-invalid-key
     sshPrivateKeyFilePath: test-invalid.pem
-    repos:
-      - "test/test"
-      - "test/test1"
 enabled: true

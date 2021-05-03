@@ -1,6 +1,5 @@
 package com.amazon.spinnaker.clouddriver.k8s.services
 
-import com.amazon.spinnaker.clouddriver.k8s.configuration.PluginConfig
 import com.amazon.spinnaker.clouddriver.k8s.exceptions.ResourceNotFound
 import com.amazon.spinnaker.clouddriver.k8s.model.GitRepo
 import com.netflix.spinnaker.clouddriver.artifacts.ArtifactCredentialsRepository
@@ -12,7 +11,6 @@ import java.io.File
 
 class GitRepoCredentials(
     private val artifactCredentialsRepository: ArtifactCredentialsRepository,
-    private val pluginConfig: PluginConfig
 ) {
 
     private val executorField = GitRepoArtifactCredentials::class.java.getDeclaredField("executor")
@@ -35,7 +33,6 @@ class GitRepoCredentials(
                     account.token,
                     account.username,
                     account.password,
-                    repos = getReposForAccount(account.name)
                 )
                 if (!account.sshPrivateKeyFilePath.isNullOrEmpty()) {
                     repo.sshPrivateKey = readSSHKey(account.sshPrivateKeyFilePath)
@@ -56,7 +53,6 @@ class GitRepoCredentials(
                     account.token,
                     account.username,
                     account.password,
-                    repos = getReposForAccount(name),
                 )
                 if (!account.sshPrivateKeyFilePath.isNullOrEmpty()) {
                     out.sshPrivateKey = readSSHKey(account.sshPrivateKeyFilePath)
@@ -81,14 +77,5 @@ class GitRepoCredentials(
             return ""
         }
         return file.readText()
-    }
-
-    private fun getReposForAccount(name: String): List<String> {
-        pluginConfig.accounts.forEach {
-            if (it.name == name) {
-                return it.repos
-            }
-        }
-        return emptyList()
     }
 }
