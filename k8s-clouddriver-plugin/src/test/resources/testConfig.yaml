@@ -1,0 +1,10 @@
+accounts:
+  - name: git-repo
+    token: token1
+  - name: git-repo2
+    token: token2
+  - name: git-repo-with-key
+    sshPrivateKeyFilePath: test.pem
+  - name: git-repo-with-invalid-key
+    sshPrivateKeyFilePath: test-invalid.pem
+enabled: true
