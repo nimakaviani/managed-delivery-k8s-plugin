@@ -49,7 +49,7 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
 
                 test("can be deserialized to a Helm object") {
                     expectThat(this)
-                        .get { template.spec["interval"] }.isEqualTo("5m")
+                        .get { template.spec?.get("interval") }.isEqualTo("5m")
                 }
 
                 test("uses default namespace for Helm resource when namespace missing") {

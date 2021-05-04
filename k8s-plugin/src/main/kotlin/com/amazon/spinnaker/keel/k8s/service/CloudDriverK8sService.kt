@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.keel.k8s.service
 
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
+import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.netflix.spinnaker.config.DefaultServiceEndpoint
 import com.netflix.spinnaker.config.okhttp3.OkHttpClientProvider
@@ -19,6 +20,12 @@ interface CloudDriverK8sService {
         @Path("namespace") namespace: String,
         @Path("resource") resource: String
     ): K8sResourceModel
+
+    @GET("/credentialsDetails/gitRepo/{account}")
+    suspend fun getCredentialsDetails(
+        @Header("X-SPINNAKER-USER") acc: String,
+        @Path("account") account: String
+    ): GitRepoAccountDetails
 }
 
 class CloudDriverK8sServiceSupplier(
@@ -38,6 +45,10 @@ class CloudDriverK8sServiceSupplier(
 
     override suspend fun getK8sResource(acc: String, account: String, namespace: String, resource: String): K8sResourceModel {
         return client.getK8sResource(acc, account, namespace, resource)
+    }
+
+    override suspend fun getCredentialsDetails(acc: String, account: String): GitRepoAccountDetails {
+        return client.getCredentialsDetails(acc, account)
     }
 }
 

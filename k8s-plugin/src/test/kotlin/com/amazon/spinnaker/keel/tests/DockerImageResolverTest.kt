@@ -319,7 +319,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
     }
 
     fun getImageWithName(r: Resource<K8sResourceSpec>, name: String) : String {
-        val containers = ((r.spec.template.spec["template"] as Map<String, Any>)["spec"] as Map<String, Any>)["containers"] as List<Map<String, Any>>
+        val containers = ((r.spec.template.spec?.get("template") as Map<String, Any>)["spec"] as Map<String, Any>)["containers"] as List<Map<String, Any>>
         containers.filter { it["name"] == name }.also{ return it.first()["image"] as String}
     }
 

@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
@@ -12,6 +13,7 @@ import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.plugins.SupportedKind
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.model.Job
+import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import retrofit2.HttpException
@@ -20,6 +22,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
     open val cloudDriverK8sService: CloudDriverK8sService,
     open val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
+    val orcaService: OrcaService,
     open val resolvers: List<Resolver<*>>
     ): ResolvableResourceHandler<S, R>(resolvers) {
 
@@ -38,12 +41,14 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
     ): R? =
         coroutineScope {
             try {
-                getK8sResource(
-                    r.serviceAccount,
-                    r.spec.locations.account,
-                    r.spec.template.namespace(),
-                    r.spec.template.kindQualifiedName()
-                ).toResourceModel()
+                r.spec.template?.let {
+                    getK8sResource(
+                        r.serviceAccount,
+                        r.spec.locations.account,
+                        it.namespace(),
+                        r.spec.template!!.kindQualifiedName()
+                    ).toResourceModel()
+                }
             } catch (e: HttpException) {
                 if (e.code() == 404) {
                     logger.info("resource ${r.id} not found")
@@ -61,7 +66,8 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
             apiVersion = manifest.apiVersion,
             kind = manifest.kind,
             metadata = manifest.metadata,
-            spec = manifest.spec
+            spec = manifest.spec,
+            data = manifest.data
         ) as R
 
     override suspend fun upsert(
@@ -75,7 +81,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
 
         val spec = (diff.desired)
         val account = resource.spec.locations.account
-
+        log.debug("upserting. spec: $spec")
         return listOf(
             taskLauncher.submitJob(
                 resource = resource,

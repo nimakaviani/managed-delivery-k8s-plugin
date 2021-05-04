@@ -1,7 +1,7 @@
 package com.amazon.spinnaker.keel.k8s
 
+import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.DockerImageResolver
-import com.amazon.spinnaker.keel.k8s.resolver.HelmResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResourceHandler
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sServiceSupplier
@@ -23,9 +23,9 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
         listOf(
                 beanDefinitionFor(CloudDriverK8sServiceSupplier::class.java),
                 beanDefinitionFor(K8sResourceHandler::class.java),
-                beanDefinitionFor(HelmResourceHandler::class.java),
                 beanDefinitionFor(K8sResolver::class.java),
-                beanDefinitionFor(DockerImageResolver::class.java)
+                beanDefinitionFor(DockerImageResolver::class.java),
+                beanDefinitionFor(CredentialsResourceHandler::class.java)
         ).forEach {
             registerBean(it, registry)
         }
