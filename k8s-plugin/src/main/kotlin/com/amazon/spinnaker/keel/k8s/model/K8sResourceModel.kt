@@ -27,8 +27,8 @@ data class K8sData(
 
 
 data class K8sObjectManifest(
-    val apiVersion: String,
-    val kind: String,
+    val apiVersion: String?,
+    val kind: String?,
     @get:ExcludedFromDiff
     val metadata: Map<String, Any?>,
     val spec: K8sSpec?,
@@ -39,5 +39,7 @@ data class K8sObjectManifest(
 
     // the kind qualified name is the format expected by the clouddriver
     // e.g. "pod test" would indicate a pod of name "test"
-    fun kindQualifiedName(): String = "${kind.toLowerCase()} ${(metadata[NAME] as String)}"
+    fun kindQualifiedName(): String = kind?.let {
+        "${it.toLowerCase()} ${(metadata[NAME] as String)}"
+    } ?: ""
 }

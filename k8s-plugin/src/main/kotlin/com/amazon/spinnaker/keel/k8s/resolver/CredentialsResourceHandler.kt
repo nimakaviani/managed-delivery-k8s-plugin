@@ -1,6 +1,8 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.SECRET_API_V1
+import com.amazon.spinnaker.keel.k8s.SECRET
 import com.amazon.spinnaker.keel.k8s.K8sData
 import com.amazon.spinnaker.keel.k8s.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
@@ -69,8 +71,8 @@ class CredentialsResourceHandler(
         }
         // setting strategy.spinnaker.io/versioned is needed to avoid creating secrets with versioned names e.g. testing1-v000
         return K8sObjectManifest(
-            resource.spec.template.apiVersion,
-            "Secret",
+            SECRET_API_V1,
+            SECRET,
             mapOf(
                 "namespace" to resource.spec.namespace,
                 "name" to "${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}",

@@ -45,15 +45,15 @@ class K8sResourceHandler (
         coroutineScope {
                 // defer to GenericK8sResourceHandler to get the resource
                 // from the k8s cluster
-                val manifest = cloudDriverK8sService.getK8sResource(r)?: null
+                val manifest = cloudDriverK8sService.getK8sResource(r)
 
                 // notify change to the k8s vanilla image artifact based
                 // on retrieved data
                 manifest?.let {
                     val imageString = it.spec?.let { it1 -> find(it1, IMAGE) } as String?
-                    imageString?.let {
-                        log.info("Deployed artifact $it")
-                        notifyArtifactDeployed(r as Resource<K8sResourceSpec>, getTag(it))
+                    imageString?.let { image ->
+                        log.info("Deployed artifact $image")
+                        notifyArtifactDeployed(r, getTag(image))
                     }
                 }
                 manifest
@@ -88,7 +88,7 @@ class K8sResourceHandler (
         m.forEach{
             if (it.value is Map<*, *>) {
                 val r = it.value as MutableMap<String, Any?>
-                find(r, key)?.let{ it -> return it}
+                find(r, key)?.let{ nested -> return nested}
             } else if (it.value is ArrayList<*>) {
                 (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
                     find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
