@@ -66,12 +66,7 @@ More details on the above can be found on the corresponding
 
 ## Deploying to Kubernetes
 
-Support for Kubernetes deployments in the plugin is split into several parts:
-- Deploying vanilla Kubernetes resources
-- Deploying and tracking container artifacts
-- Deploying HELM charts
-
-Details on each of the above can be found in sections below:
+Support for Kubernetes deployments in the plugin is split into several parts as listed below (expand for details):
 
 <details>
 <summary>Deploying Vanilla Kubernetes Resources</summary>
@@ -242,11 +237,11 @@ resources:
 </details>
 
 <details>
-<summary>Deploying HELM charts</summary>
+<summary>Deploying HELM and Kustomzie charts</summary>
 
-The plugin relies on [Flux2](https://github.com/fluxcd/flux2) for deployment of HELM resources.
+The plugin relies on [Flux2](https://github.com/fluxcd/flux2) for deployment of HELM and Kustomize resources.
 This relieves the plugin from having to deal with the heavy lifting of managing changes to HELM charts
-where that can be delegated to flux.
+or Kustoization sources where that can be delegated to flux.
 
 In order to get HELM deployments working, first you need to install [Flux2](https://github.com/fluxcd/flux2)
 _helm controller_ and _source controller_ into your cluster, with the following command (assuming that you
@@ -261,13 +256,13 @@ flux install \
 
 Once the controllers are installed, adding a HELM repository and a HELM release to a delivery config manifest
 is similar to how it is done for Kubernetes resources. The managed delivery resource kind however, needs
-to be updated to `k8s/helm@v1`, indicating deployment of a HELM chart using the plugin.
+to be updated to `k8s/helm@v1` for the `HelmRepository`, indicating deployment of a HELM chart using the plugin.
 
 Below, an example is shown for _Crossplane_.
 
 ```yaml
 resources:
-- kind: k8s/helm@v1
+- kind: k8s/resource@v1
   spec:
     metadata:
       application: spinmd
@@ -286,8 +281,6 @@ resources:
     metadata:
       application: spinmd
     template:
-      apiVersion: helm.toolkit.fluxcd.io/v2beta1
-      kind: HelmRelease
       metadata:
         name: crossplane
         namespace: flux-system
@@ -310,6 +303,56 @@ resources:
 
 **Note:** _Tracking of charts on HELM repositories is not yet supported in the plugin_.
 </details>
+
+---
+
+Similarly, for installing Kustomizations, you first add the required flux controllers:
+
+```bash
+flux install \
+    --namespace=flux-system \
+    --network-policy=false \
+    --components=source-controller,kustomize-controller
+```
+
+then, add the Git repo and the `k8s/kustomize@v1` resource to the delivery manifest:
+
+```yaml
+resources:
+  - kind: k8s/resource@v1
+    spec:
+      metadata:
+        application: spinmd
+      template:
+        apiVersion: source.toolkit.fluxcd.io/v1beta1
+        kind: GitRepository
+        metadata:
+          name: crossflux
+        spec:
+          interval: 5m
+          url: ssh://git@github.com/nimakaviani/crossflux.git
+          secretRef:
+            name: git-deploy-key
+          ref:
+            branch: main
+
+
+  - kind: k8s/kustomize@v1
+    spec:
+      metadata:
+        application: spinmd
+      template:
+        metadata:
+          name: setup
+        spec:
+          interval: 10m0s
+          sourceRef:
+            kind: GitRepository
+            name: crossflux
+          path: ./setup
+          prune: true
+          validation: client
+```
 
 ## Build
 run `./gradlew releaseBundle` and copy the created zip file to
