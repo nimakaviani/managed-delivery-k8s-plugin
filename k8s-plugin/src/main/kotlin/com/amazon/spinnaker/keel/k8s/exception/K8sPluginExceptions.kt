@@ -17,3 +17,6 @@ class NotLinked(reference: String) :
             "resource image should have the same value as the container image for references to be linked")
 class CouldNotRetrieveCredentials(accountName: String, e :Throwable? = null) :
     ResourceCurrentlyUnresolvable("could not retrieve account named $accountName in clouddriver", e)
+
+class MisconfiguredObjectException(name: String, value: String, expected: String, e: Throwable? = null):
+    ResourceCurrentlyUnresolvable(" $name is configured to $value where it should be $expected", e)
