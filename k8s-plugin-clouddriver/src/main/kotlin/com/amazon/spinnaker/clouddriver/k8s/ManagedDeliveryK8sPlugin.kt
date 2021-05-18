@@ -1,7 +1,9 @@
 package com.amazon.spinnaker.clouddriver.k8s
 
+import com.amazon.spinnaker.clouddriver.k8s.services.GitRepoCredentials
 import com.netflix.spinnaker.kork.plugins.api.spring.SpringLoaderPlugin
 import org.pf4j.PluginWrapper
+import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
 
 class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : SpringLoaderPlugin(wrapper) {
@@ -17,5 +19,13 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : SpringLoaderPlugin(wrap
         return listOf(
             "com.amazon.spinnaker.clouddriver.k8s"
         )
+    }
+
+    override fun registerBeanDefinitions(registry: BeanDefinitionRegistry?) {
+        listOf(
+            beanDefinitionFor(GitRepoCredentials::class.java),
+        ).forEach {
+            registerBean(it, registry)
+        }
     }
 }
