@@ -6,7 +6,7 @@ import com.netflix.spinnaker.keel.api.SimpleLocations
 
 interface GenericK8sLocatable : Locatable<SimpleLocations> {
     val metadata: Map<String, String>
-    val template: K8sObjectManifest?
+    val template: K8sManifest?
     val namespace: String
         get() = (template?.metadata?.get(NAMESPACE) ?: NAMESPACE_DEFAULT) as String
 

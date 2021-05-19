@@ -2,19 +2,42 @@ package com.amazon.spinnaker.keel.k8s
 
 import com.netflix.spinnaker.keel.api.ExcludedFromDiff
 import com.netflix.spinnaker.keel.api.Moniker
+import java.lang.RuntimeException
 
 data class K8sResourceModel(
     val account: String,
     val artifacts: List<Any>?,
     val events: List<Any>?,
     val location: String?,
-    val manifest: K8sObjectManifest,
+    val manifest: K8sManifest,
     val metrics: List<Any>?,
     val moniker: Moniker?,
     val name: String?,
     val status: Map<Any, Any>?,
     val warnings: List<Any>?
-)
+) {
+    inline fun <reified R> toManifest() : R {
+        when(R::class) {
+            K8sObjectManifest::class -> return K8sObjectManifest(
+                apiVersion = manifest.apiVersion,
+                kind = manifest.kind,
+                metadata = manifest.metadata,
+                spec = manifest.spec,
+                data = manifest.data
+            ) as R
+
+            K8sCredentialManifest::class -> return K8sCredentialManifest(
+                apiVersion = manifest.apiVersion,
+                kind = manifest.kind,
+                metadata = manifest.metadata,
+                spec = manifest.spec,
+                data = manifest.data
+            ) as R
+
+            else -> throw RuntimeException("not found")
+        }
+    }
+}
 
 typealias K8sSpec = MutableMap<String, Any?>
 
@@ -25,21 +48,41 @@ data class K8sData(
     val identity: String? = null
 )
 
-
-data class K8sObjectManifest(
-    val apiVersion: String?,
-    val kind: String?,
+abstract class K8sManifest(
+    open val apiVersion: String?,
+    open val kind: String?,
     @get:ExcludedFromDiff
-    val metadata: Map<String, Any?>,
-    val spec: K8sSpec?,
-    val data: K8sData? = null
+    open val metadata: Map<String, Any?>,
+    open val spec: K8sSpec?,
+    open val data: K8sData? = null
 ) {
-    fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
-    fun name(): String = metadata[NAME] as String
+    open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
+    abstract fun name(): String
 
     // the kind qualified name is the format expected by the clouddriver
     // e.g. "pod test" would indicate a pod of name "test"
-    fun kindQualifiedName(): String = kind?.let {
-        "${it.toLowerCase()} ${(metadata[NAME] as String)}"
+    open fun kindQualifiedName(): String = kind?.let {
+        "${it.toLowerCase()} ${name()}"
     } ?: ""
+}
+
+data class K8sObjectManifest(
+    override val apiVersion: String?,
+    override val kind: String?,
+    @get:ExcludedFromDiff
+    override val metadata: Map<String, Any?>,
+    override val spec: K8sSpec?,
+    override val data: K8sData? = null
+) : K8sManifest(apiVersion, kind, metadata, spec, data) {
+    override fun name(): String = metadata[NAME] as String
+}
+
+data class K8sCredentialManifest(
+     override val apiVersion: String?,
+     override val kind: String?,
+     @get:ExcludedFromDiff
+     override val metadata: Map<String, Any?>,
+     override val spec: K8sSpec?,
+     override val data: K8sData? = null) : K8sManifest(apiVersion, kind, metadata, spec, data) {
+    override fun name(): String = "${metadata[TYPE]}-${data?.account}"
 }

@@ -33,7 +33,7 @@ class K8sResourceHandler (
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? {
-        val clusterResource = cloudDriverK8sService.getK8sResource(resource) ?: return null
+        val clusterResource = getK8sResource(resource) ?: return null
         val mapper = jacksonObjectMapper()
         val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
         return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
@@ -45,12 +45,12 @@ class K8sResourceHandler (
         coroutineScope {
                 // defer to GenericK8sResourceHandler to get the resource
                 // from the k8s cluster
-                val manifest = cloudDriverK8sService.getK8sResource(r)
+                val manifest = cloudDriverK8sService.getK8sResource(r)?.toManifest<K8sObjectManifest>()
 
                 // notify change to the k8s vanilla image artifact based
                 // on retrieved data
                 manifest?.let {
-                    val imageString = it.spec?.let { it1 -> find(it1, IMAGE) } as String?
+                    val imageString = find(manifest.spec as MutableMap<String, Any?>, IMAGE) as String?
                     imageString?.let { image ->
                         log.info("Deployed artifact $image")
                         notifyArtifactDeployed(r, getTag(image))

@@ -18,7 +18,7 @@ import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import retrofit2.HttpException
 
-abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectManifest>(
+abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest>(
     open val cloudDriverK8sService: CloudDriverK8sService,
     open val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
@@ -38,7 +38,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
 
     open suspend fun CloudDriverK8sService.getK8sResource(
         r: Resource<S>,
-    ): R? =
+    ): K8sResourceModel? =
         coroutineScope {
             try {
                 r.spec.template?.let {
@@ -47,7 +47,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
                         r.spec.locations.account,
                         it.namespace(),
                         r.spec.template!!.kindQualifiedName()
-                    ).toResourceModel()
+                    )
                 }
             } catch (e: HttpException) {
                 if (e.code() == 404) {
@@ -59,16 +59,10 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
             }
         }
 
+    // this function needs to be implemented in child classes
+    // when fetching the current resource, instead of deferring
+    // to the more generic Clouddriver function
     abstract suspend fun getK8sResource(r: Resource<S>) : R?
-
-    private fun K8sResourceModel.toResourceModel() : R =
-        K8sObjectManifest(
-            apiVersion = manifest.apiVersion,
-            kind = manifest.kind,
-            metadata = manifest.metadata,
-            spec = manifest.spec,
-            data = manifest.data
-        ) as R
 
     override suspend fun upsert(
         resource: Resource<S>,

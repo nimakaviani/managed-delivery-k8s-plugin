@@ -17,6 +17,7 @@ const val KEEL_MONIKER_APP: String = "moniker.spinnaker.io/application"
 
 const val NAME: String = "name"
 const val NAMESPACE: String = "namespace"
+const val TYPE: String = "type"
 const val NAMESPACE_DEFAULT: String = "default"
 const val ANNOTATIONS: String = "annotations"
 const val LABELS: String = "labels"

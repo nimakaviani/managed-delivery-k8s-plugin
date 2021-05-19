@@ -47,17 +47,17 @@ class HelmResourceHandler(
     }
 
     override suspend fun current(resource: Resource<HelmResourceSpec>): K8sObjectManifest? {
-        val clusterResource = cloudDriverK8sService.getK8sResource(resource) ?: return null
+        val clusterResource = getK8sResource(resource) ?: return null
         val mapper = jacksonObjectMapper()
         val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
         return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
     }
 
     override suspend fun getK8sResource(r: Resource<HelmResourceSpec>): K8sObjectManifest? =
-        coroutineScope {
-            // defer to GenericK8sResourceHandler to get the resource
-            // from the k8s cluster
-            cloudDriverK8sService.getK8sResource(r) ?: null
+        // defer to GenericK8sResourceHandler to get the resource
+        // from the k8s cluster
+        cloudDriverK8sService.getK8sResource(r)?.let {
+            it.toManifest<K8sObjectManifest>()
         }
 
     override suspend fun actuationInProgress(resource: Resource<HelmResourceSpec>): Boolean =
