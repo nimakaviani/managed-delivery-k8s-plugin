@@ -48,7 +48,7 @@ data class K8sData(
     val identity: String? = null
 )
 
-abstract class K8sManifest(
+open class K8sManifest(
     open val apiVersion: String?,
     open val kind: String?,
     @get:ExcludedFromDiff
@@ -57,7 +57,7 @@ abstract class K8sManifest(
     open val data: K8sData? = null
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
-    abstract fun name(): String
+    open fun name(): String = throw Exception("not implemented")
 
     // the kind qualified name is the format expected by the clouddriver
     // e.g. "pod test" would indicate a pod of name "test"
