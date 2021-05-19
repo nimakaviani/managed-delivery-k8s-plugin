@@ -3,6 +3,20 @@ import { IManagedResourceSummary } from '@spinnaker/core/lib/domain';
 import { IconNames } from '@spinnaker/presentation';
 
 
+class K8sCredsHandler implements IResourceKindConfig {
+    kind = "k8s/credential"
+    iconName: IconNames = "spMenuSecurityGroups"
+    experimentalDisplayLink = this.displayLink()
+
+    public displayLink(): ((resource: IManagedResourceSummary) => string) {
+        return function (resource: IManagedResourceSummary) {
+            const path = `#/applications/${resource.moniker?.app}/securityGroups`
+            const params = `?acct=${resource.locations?.account}`
+            return `${path}${params}`
+        }
+    }
+}
+
 class k8sResourceHandler implements IResourceKindConfig {
     kind = "k8s/resource"
     iconName: IconNames = "spMenuK8s"
@@ -18,5 +32,5 @@ class k8sResourceHandler implements IResourceKindConfig {
 }
 
 export class k8sManagedDeliveryPlugin implements IManagedDeliveryPlugin {
-    resources: IResourceKindConfig[] = [new k8sResourceHandler()]
+    resources: IResourceKindConfig[] = [new k8sResourceHandler(), new K8sCredsHandler()]
 }
