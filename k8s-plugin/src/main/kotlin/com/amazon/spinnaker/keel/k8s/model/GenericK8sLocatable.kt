@@ -17,5 +17,5 @@ interface GenericK8sLocatable : Locatable<SimpleLocations> {
         get() = "${locations.account}-$namespace-${template?.kind}-${template?.name()}".toLowerCase()
 
     override val displayName: String
-        get() = "${locations.account}-$namespace-${template?.kind}-${template?.name()}".toLowerCase()
+        get() = "${locations.account}  $namespace::${template?.kind?.capitalize()}  (${template?.name()})"
 }

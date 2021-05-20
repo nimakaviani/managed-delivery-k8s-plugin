@@ -47,7 +47,7 @@ class CredentialsResourceSpecTest : JUnit5Minutests {
                 }
 
                 test("name matches the specification") {
-                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account-default-secret-git-something")
+                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account  default::Secret  (git-something)")
                 }
             }
         }

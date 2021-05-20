@@ -63,7 +63,7 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
                 }
 
                 test("name matches the specification") {
-                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account-default-deployment-hello-kubernetes")
+                    expectThat(this).get { displayName }.isEqualTo("my-k8s-west-account  default::Deployment  (hello-kubernetes)")
                 }
 
                 test("can be deserialized to a K8s object") {
