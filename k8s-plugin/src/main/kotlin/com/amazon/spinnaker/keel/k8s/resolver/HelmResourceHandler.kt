@@ -2,8 +2,8 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
-import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -51,9 +51,8 @@ class HelmResourceHandler(
 
     override suspend fun current(resource: Resource<HelmResourceSpec>): K8sObjectManifest? {
         val clusterResource = getK8sResource(resource) ?: return null
-        val mapper = jacksonObjectMapper()
         val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-        return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
+        return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
     }
 
     override suspend fun upsert(
@@ -69,7 +68,7 @@ class HelmResourceHandler(
         // defer to GenericK8sResourceHandler to get the resource
         // from the k8s cluster
         cloudDriverK8sService.getK8sResource(r)?.let {
-            it.toManifest<K8sObjectManifest>()
+            it.manifest.to<K8sObjectManifest>()
         }
 
     override suspend fun actuationInProgress(resource: Resource<HelmResourceSpec>): Boolean =

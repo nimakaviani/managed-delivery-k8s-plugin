@@ -1,12 +1,12 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
-import com.amazon.spinnaker.keel.k8s.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
-import com.amazon.spinnaker.keel.k8s.K8sSpec
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService

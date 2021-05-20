@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.k8s.resolver
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
+import com.amazon.spinnaker.keel.k8s.model.K8sManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
@@ -103,4 +104,19 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
                 "enableTraffic" to true.toString()
             )
         )
+
+    fun find(m: MutableMap<String, Any?>, key: String): Any? {
+        m[key]?.let{ return it }
+        m.forEach{
+            if (it.value is Map<*, *>) {
+                val r = it.value as MutableMap<String, Any?>
+                find(r, key)?.let{ nested -> return nested}
+            } else if (it.value is ArrayList<*>) {
+                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
+                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
+                }
+            }
+        }
+        return null
+    }
 }

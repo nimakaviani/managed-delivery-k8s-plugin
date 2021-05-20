@@ -4,6 +4,8 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
+import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sData
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
@@ -12,7 +14,6 @@ import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
-import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 import java.util.*
 
@@ -108,7 +109,7 @@ class CredentialsResourceHandler(
     }
 
     override suspend fun getK8sResource(r: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
-        cloudDriverK8sService.getK8sResource(r)?.toManifest<K8sCredentialManifest>()
+        cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sCredentialManifest>()
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
         resource.spec.template.data?.account.let {

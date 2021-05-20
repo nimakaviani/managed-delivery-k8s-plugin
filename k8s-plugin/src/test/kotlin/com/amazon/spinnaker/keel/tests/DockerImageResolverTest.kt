@@ -16,6 +16,8 @@ import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverService
 import com.netflix.spinnaker.keel.clouddriver.model.DockerImage
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
 import io.mockk.coEvery

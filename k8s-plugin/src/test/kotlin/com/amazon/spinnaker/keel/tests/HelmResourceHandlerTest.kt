@@ -8,8 +8,9 @@ import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
-import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
 import com.netflix.spinnaker.keel.api.plugins.Resolver
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
 import com.netflix.spinnaker.keel.model.OrchestrationRequest

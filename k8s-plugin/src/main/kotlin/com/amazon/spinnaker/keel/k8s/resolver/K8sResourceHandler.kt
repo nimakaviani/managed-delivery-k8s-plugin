@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.k8s.resolver
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -45,7 +46,7 @@ class K8sResourceHandler (
         coroutineScope {
                 // defer to GenericK8sResourceHandler to get the resource
                 // from the k8s cluster
-                val manifest = cloudDriverK8sService.getK8sResource(r)?.toManifest<K8sObjectManifest>()
+                val manifest = cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sObjectManifest>()
 
                 // notify change to the k8s vanilla image artifact based
                 // on retrieved data
@@ -81,21 +82,6 @@ class K8sResourceHandler (
         val matchResult = regex.find(imageString)
         val (tag) = matchResult!!.destructured
         return tag
-    }
-
-    private fun find(m: MutableMap<String, Any?>, key: String): Any? {
-        m[key]?.let{ return it }
-        m.forEach{
-            if (it.value is Map<*, *>) {
-                val r = it.value as MutableMap<String, Any?>
-                find(r, key)?.let{ nested -> return nested}
-            } else if (it.value is ArrayList<*>) {
-                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
-                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
-                }
-            }
-        }
-        return null
     }
 
     override suspend fun actuationInProgress(resource: Resource<K8sResourceSpec>): Boolean =
