@@ -9,11 +9,28 @@ version of Spinnaker components. For tracking of Docker artifacts and integratio
 you can also follow instructions on deploying the [CI Build Plugin](https://github.com/nimakaviani/ci-build-plugin).
 
 ## Configuration
-Add the following to `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load plugin.
+Managed Delivery Kubernetes plugin extends Keel, Clouddriver, and Deck microservices. For Deck, add
+the following snippet to your `gate.yml` profile and enable `deck-proxy` as shown below:
+
+```yaml
+spinnaker:
+  extensibility:
+    plugins-root-path: /opt/gate/plugins
+    deck-proxy:
+      enabled: true
+      plugins:
+        aws.ManagedDeliveryK8sPlugin:
+          enabled: true
+          version: <<plugin release version>>
+    repositories:
+      awsManagedDelvieryK8sPluginRepo:
+        url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
+```
+
+For Keel and Clouddriver, add the following to `clouddriver.yml` and `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load plugin.
 ```yaml
 spinnaker:
     extensibility:
-      plugins-root-path: /opt/keel/plugins
       plugins:
         aws.ManagedDeliveryK8sPlugin:
           enabled: true
