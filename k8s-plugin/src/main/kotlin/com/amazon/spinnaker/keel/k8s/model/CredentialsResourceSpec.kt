@@ -12,7 +12,7 @@ data class CredentialsResourceSpec(
     override val template: K8sCredentialManifest,
 ) : GenericK8sLocatable {
     init {
-        template.kind = SECRET
-        template.apiVersion = SECRET_API_V1
+        template.kind = template.kind ?: SECRET
+        template.apiVersion = template.apiVersion ?: SECRET_API_V1
     }
 }

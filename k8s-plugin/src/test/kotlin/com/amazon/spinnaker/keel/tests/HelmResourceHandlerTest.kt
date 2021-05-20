@@ -75,8 +75,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
-        |  kind: HelmRepository
+        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -92,7 +92,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  application: test
         |template:
         |  apiVersion: something
-        |  kind: HelmRepository
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -107,8 +107,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
-        |  kind: HelmRepository
+        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -244,7 +244,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                     }
 
                     expectThat(resources.first()) {
-                        get { kindQualifiedName() }.isEqualTo("helmrepository hello-kubernetes")
+                        get { kindQualifiedName() }.isEqualTo("helmrelease hello-kubernetes")
                     }
                 }
 
