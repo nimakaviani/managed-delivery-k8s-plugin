@@ -14,8 +14,8 @@ interface GenericK8sLocatable : Locatable<SimpleLocations> {
         get() = metadata.getValue(APPLICATION).toString()
 
     override val id: String
-        get() = "${locations.account}-$namespace-${template?.kind}-${template?.metadata?.get(NAME)}".toLowerCase()
+        get() = "${locations.account}-$namespace-${template?.kind}-${template?.name()}".toLowerCase()
 
     override val displayName: String
-        get() = "${locations.account}-$namespace-${template?.kind}-${template?.metadata?.get(NAME)}".toLowerCase()
+        get() = "${locations.account}-$namespace-${template?.kind}-${template?.name()}".toLowerCase()
 }

@@ -2,11 +2,14 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
+import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
+import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
@@ -51,6 +54,15 @@ class HelmResourceHandler(
         val mapper = jacksonObjectMapper()
         val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
         return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
+    }
+
+    override suspend fun upsert(
+        resource: Resource<HelmResourceSpec>,
+        diff: ResourceDiff<K8sObjectManifest>
+    ): List<Task> {
+        resource.spec.template.kind = FLUX_HELM_KIND
+        resource.spec.template.apiVersion = FLUX_HELM_API_VERSION
+        return super.upsert(resource, diff)
     }
 
     override suspend fun getK8sResource(r: Resource<HelmResourceSpec>): K8sObjectManifest? =

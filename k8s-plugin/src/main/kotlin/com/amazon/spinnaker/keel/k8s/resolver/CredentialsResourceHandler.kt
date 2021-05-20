@@ -6,6 +6,8 @@ import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
+import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
@@ -94,6 +96,15 @@ class CredentialsResourceHandler(
                 throw e
             }
         }
+    }
+
+    override suspend fun upsert(
+        resource: Resource<CredentialsResourceSpec>,
+        diff: ResourceDiff<K8sCredentialManifest>
+    ): List<Task> {
+        resource.spec.template.kind = SECRET
+        resource.spec.template.apiVersion = SECRET_API_V1
+        return super.upsert(resource, diff)
     }
 
     override suspend fun getK8sResource(r: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
