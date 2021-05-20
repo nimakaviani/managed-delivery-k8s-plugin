@@ -1,17 +1,20 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.K8S_LAST_APPLIED_CONFIG
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
@@ -82,6 +85,17 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |ckGSRmO645oWUiQauTZ1gzkpre9WtIyUUUC52ZrTLCBzM7N6TdVcaQ1/UvYRGBmoviV43X
         |AgMEBQ==
         |-----END OPENSSH PRIVATE KEY-----
+        """.trimMargin()
+
+    private val expectedSecret = """
+        |apiVersion: v1
+        |kind: Secret
+        |metadata:
+        |  namespace: test-ns
+        |  name: git-test-git-repo
+        |data:
+        |  username: something
+        |  password: something
         """.trimMargin()
 
     fun tests() = rootContext<CredentialsResourceHandler> {
@@ -236,12 +250,17 @@ class CredentialsHandlerTest : JUnit5Minutests {
         }
 
         context("resource exists") {
+            var manifest: K8sObjectManifest
             before {
-                val manifest = K8sObjectManifest(
+                val lastApplied = yamlMapper.readValue(expectedSecret, K8sCredentialManifest::class.java)
+                manifest = K8sObjectManifest(
                     apiVersion = "v1",
                     kind = "Secret",
                     metadata = mapOf(
                         "name" to "test-git-repo",
+                        "annotations" to mapOf(
+                                K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(lastApplied)
+                        )
                     ),
                     spec = mutableMapOf<String, Any>() as K8sSpec
                 )
@@ -261,7 +280,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             test("should return manifest") {
                 runBlocking {
                     val result = current(resource)
-                    expectThat(result!!.metadata["name"]).isEqualTo("test-git-repo")
+                    expectThat(result!!.metadata["name"]).isEqualTo("git-test-git-repo")
                 }
             }
         }

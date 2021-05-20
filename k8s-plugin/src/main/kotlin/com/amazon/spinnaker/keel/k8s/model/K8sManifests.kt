@@ -13,13 +13,34 @@ data class K8sData(
     val identity: String? = null
 )
 
+data class Condition(
+    val lastTransitionTime: String? = null,
+    val message: String? = null,
+    val reason: String? = null,
+    val status: String? = null,
+    val type: String? = null,
+)
+
+data class Status (
+    val conditions: Array<Condition>?,
+)
+
+inline fun Status.isReady() : Boolean {
+    this.conditions?.forEach { it ->
+        if (it.type == "Ready" || it.type == "Available")
+            return it.status == "True"
+    }
+    return true
+}
+
 open class K8sManifest(
-    open val apiVersion: String?,
-    open val kind: String?,
+    open var apiVersion: String?,
+    open var kind: String?,
     @get:ExcludedFromDiff
-    open val metadata: Map<String, Any?>,
-    open val spec: K8sSpec?,
-    open val data: K8sData? = null
+    open var metadata: Map<String, Any?>,
+    open var spec: K8sSpec?,
+    open var data: K8sData? = null,
+    open var status: Status? = null,
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
     open fun name(): String = throw Exception("not implemented")
@@ -37,7 +58,8 @@ open class K8sManifest(
                 kind = kind,
                 metadata = metadata,
                 spec = spec,
-                data = data
+                data = data,
+                status = status,
             ) as R
 
             K8sCredentialManifest::class -> return K8sCredentialManifest(
@@ -45,7 +67,8 @@ open class K8sManifest(
                 kind = kind,
                 metadata = metadata,
                 spec = spec,
-                data = data
+                data = data,
+                status = status,
             ) as R
 
             else -> throw RuntimeException("not found")
@@ -59,8 +82,9 @@ data class K8sObjectManifest(
     @get:ExcludedFromDiff
     override var metadata: Map<String, Any?>,
     override var spec: K8sSpec?,
-    override var data: K8sData? = null
-) : K8sManifest(apiVersion, kind, metadata, spec, data) {
+    override var data: K8sData? = null,
+    override var status: Status? = null,
+) : K8sManifest(apiVersion, kind, metadata, spec, data, status) {
     override fun name(): String = metadata[NAME] as String
 }
 
@@ -70,6 +94,8 @@ data class K8sCredentialManifest(
     @get:ExcludedFromDiff
     override var metadata: Map<String, Any?>,
     override var spec: K8sSpec?,
-    override var data: K8sData? = null) : K8sManifest(apiVersion, kind, metadata, spec, data) {
+    override var data: K8sData? = null,
+    override var status: Status? = null,
+): K8sManifest(apiVersion, kind, metadata, spec, data, status) {
     override fun name(): String = "${metadata[TYPE]}-${data?.account}"
 }

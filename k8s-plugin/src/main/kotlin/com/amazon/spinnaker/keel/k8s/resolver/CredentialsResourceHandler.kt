@@ -8,6 +8,8 @@ import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sData
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
 import com.netflix.spinnaker.keel.api.actuation.Task
@@ -88,21 +90,11 @@ class CredentialsResourceHandler(
         )
     }
 
-    override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? {
-        log.debug("resource received: $resource spec: ${resource.spec}")
-        return try {
-            val manifest = getK8sResource(resource)
-            log.debug("response from clouddriver for manifest: $manifest")
-            manifest
-        } catch (e: HttpException) {
-            if (e.code() == 404) {
-                logger.info("resource ${resource.id} not found")
-                null
-            } else {
-                throw e
-            }
+    override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
+        super.current(resource)?.let {
+            val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+            return jacksonObjectMapper().readValue<K8sCredentialManifest>(lastAppliedConfig)
         }
-    }
 
     override suspend fun upsert(
         resource: Resource<CredentialsResourceSpec>,

@@ -1,18 +1,18 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.*
-import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
+import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
+import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.resolver.HelmResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
 import com.netflix.spinnaker.keel.api.plugins.Resolver
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
+import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.model.OrchestrationRequest
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.orca.OrcaTaskLauncher
@@ -266,8 +266,9 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
 
 
                 context("the K8s resource has been created") {
+                    val resourceModel = resourceModel()
                     before {
-                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel()
+                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel
                     }
 
                     test("the diff is clean") {
@@ -278,6 +279,37 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         }
 
                         expectThat(diff.diff.childCount()).isEqualTo(0)
+                    }
+
+                    context("when status is set") {
+                        context("with a healthy status") {
+                            before {
+                                resourceModel.manifest.status = Status(
+                                    conditions = arrayOf<Condition>(Condition(type = "Ready", status = "True"))
+                                )
+                            }
+
+                            test("deploying the resource succeeds and fires a healthy event"){
+                                runBlocking {
+                                    expectCatching { current(resource) }.succeeded()
+                                }
+                                verify(atLeast = 1) { publisher.publishEvent(ResourceHealthEvent(resource, true)) }
+                            }
+                        }
+                        context("with an unhealthy status") {
+                            before {
+                                resourceModel.manifest.status = Status(
+                                    conditions = arrayOf<Condition>(Condition(type = "Ready", status = "False"))
+                                )
+                            }
+
+                            test("deploying the resource fails and fires an unhealthy event"){
+                                runBlocking {
+                                    expectCatching { current(resource) }.failed().isA<ResourceNotReady>()
+                                }
+                                verify(atLeast = 1) { publisher.publishEvent(ResourceHealthEvent(resource, false)) }
+                            }
+                        }
                     }
                 }
             }
