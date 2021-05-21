@@ -7,8 +7,10 @@ import com.netflix.spinnaker.clouddriver.artifacts.gitRepo.GitJobExecutor
 import com.netflix.spinnaker.clouddriver.artifacts.gitRepo.GitRepoArtifactCredentials
 import com.netflix.spinnaker.kork.exceptions.MissingCredentialsException
 import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Component
 import java.io.File
 
+@Component
 class GitRepoCredentials(
     private val artifactCredentialsRepository: ArtifactCredentialsRepository,
 ) {
