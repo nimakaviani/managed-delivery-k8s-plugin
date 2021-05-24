@@ -23,7 +23,7 @@ spinnaker:
           enabled: true
           version: <<plugin release version>>
     repositories:
-      awsManagedDelvieryK8sPluginRepo:
+      awsManagedDeliveryK8sPluginRepo:
         url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
 
@@ -36,8 +36,8 @@ spinnaker:
           enabled: true
           version: <<plugin release version>>
       repositories:
-        awsManagedDelvieryK8sPluginRepo:
-          id: awsManagedDelvieryK8sPluginRepo
+        awsManagedDeliveryK8sPluginRepo:
+          id: awsManagedDeliveryK8sPluginRepo
           url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
 ## Delivery Config Manifest
