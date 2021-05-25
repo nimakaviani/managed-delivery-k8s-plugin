@@ -2,11 +2,15 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
+import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.KustomizeResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
+import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
@@ -31,11 +35,11 @@ class KustomizeResourceHandler(
         }
 
         // verify if passed in values are right
-        mapOf(
-            "apiVersion" to mapOf("actual" to resource.spec.template.apiVersion, "expected" to FLUX_KUSTOMIZE_API_VERSION),
-            "kind" to mapOf("actual" to resource.spec.template.kind, "expected" to FLUX_KUSTOMIZE_KIND)
-        ).forEach{(key, values) ->
-            if (values["actual"] != null) throw MisconfiguredObjectException(key, values["actual"]!!, values["expected"]!!)
+        try {
+            require(resource.spec.template.apiVersion.isNullOrEmpty()) {"${resource.spec.template.apiVersion} doesn't match $FLUX_KUSTOMIZE_API_VERSION"}
+            require(resource.spec.template.kind.isNullOrEmpty()) {"${resource.spec.template.kind} doesn't match $FLUX_KUSTOMIZE_KIND"}
+        }catch(e: Exception) {
+            throw MisconfiguredObjectException(e.message!!)
         }
 
         return K8sObjectManifest(
@@ -46,18 +50,17 @@ class KustomizeResourceHandler(
         )
     }
 
-    override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? {
-        val clusterResource = cloudDriverK8sService.getK8sResource(resource) ?: return null
-        val mapper = jacksonObjectMapper()
-        val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-        return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
-    }
+    override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
+        super.current(resource)?.let {
+            val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+            return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
+        }
 
     override suspend fun getK8sResource(r: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
-        coroutineScope {
-            // defer to GenericK8sResourceHandler to get the resource
-            // from the k8s cluster
-            cloudDriverK8sService.getK8sResource(r) ?: null
+    // defer to GenericK8sResourceHandler to get the resource
+        // from the k8s cluster
+        cloudDriverK8sService.getK8sResource(r)?.let {
+            it.manifest.to<K8sObjectManifest>()
         }
 
     override suspend fun actuationInProgress(resource: Resource<KustomizeResourceSpec>): Boolean =

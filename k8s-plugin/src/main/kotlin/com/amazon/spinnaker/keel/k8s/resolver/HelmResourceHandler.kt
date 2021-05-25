@@ -37,11 +37,11 @@ class HelmResourceHandler(
         }
 
         // verify if passed in values are right
-        mapOf(
-            "apiVersion" to mapOf("actual" to resource.spec.template.apiVersion, "expected" to FLUX_HELM_API_VERSION),
-            "kind" to mapOf("actual" to resource.spec.template.kind, "expected" to FLUX_HELM_KIND)
-        ).forEach{(key, values) ->
-            if (values["actual"] != null) throw MisconfiguredObjectException(key, values["actual"]!!, values["expected"]!!)
+        try {
+            require(resource.spec.template.apiVersion.isNullOrEmpty()) {"${resource.spec.template.apiVersion} doesn't match $FLUX_HELM_API_VERSION"}
+            require(resource.spec.template.kind.isNullOrEmpty()) {"${resource.spec.template.kind} doesn't match $FLUX_HELM_KIND"}
+        }catch(e: Exception) {
+            throw MisconfiguredObjectException(e.message!!)
         }
 
         return K8sObjectManifest(
@@ -57,15 +57,6 @@ class HelmResourceHandler(
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
             return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }
-
-    override suspend fun upsert(
-        resource: Resource<HelmResourceSpec>,
-        diff: ResourceDiff<K8sObjectManifest>
-    ): List<Task> {
-        resource.spec.template.kind = FLUX_HELM_KIND
-        resource.spec.template.apiVersion = FLUX_HELM_API_VERSION
-        return super.upsert(resource, diff)
-    }
 
     override suspend fun getK8sResource(r: Resource<HelmResourceSpec>): K8sObjectManifest? =
         // defer to GenericK8sResourceHandler to get the resource
