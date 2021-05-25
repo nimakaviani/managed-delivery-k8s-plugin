@@ -20,3 +20,6 @@ class CouldNotRetrieveCredentials(accountName: String, e :Throwable? = null) :
 
 class MisconfiguredObjectException(name: String, value: String, expected: String, e: Throwable? = null):
     ResourceCurrentlyUnresolvable(" $name is configured to $value where it should be $expected", e)
+
+class CredResourceTypeMissing(msg: String, e: Throwable? = null):
+    ResourceCurrentlyUnresolvable(msg)

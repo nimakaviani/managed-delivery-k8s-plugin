@@ -8,8 +8,9 @@ import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
-import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
 import com.netflix.spinnaker.keel.api.plugins.Resolver
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
 import com.netflix.spinnaker.keel.model.OrchestrationRequest
@@ -75,8 +76,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
-        |  kind: HelmRepository
+        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -92,7 +93,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  application: test
         |template:
         |  apiVersion: something
-        |  kind: HelmRepository
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -107,8 +108,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
-        |  kind: HelmRepository
+        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+        |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
         |  spec:
@@ -244,7 +245,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                     }
 
                     expectThat(resources.first()) {
-                        get { kindQualifiedName() }.isEqualTo("helmrepository hello-kubernetes")
+                        get { kindQualifiedName() }.isEqualTo("helmrelease hello-kubernetes")
                     }
                 }
 

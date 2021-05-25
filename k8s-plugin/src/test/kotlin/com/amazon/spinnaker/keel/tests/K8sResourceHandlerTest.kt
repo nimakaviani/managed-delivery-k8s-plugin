@@ -7,6 +7,7 @@ import com.amazon.spinnaker.keel.k8s.resolver.K8sResourceHandler
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.Environment
+import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeployed
 import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
@@ -14,6 +15,7 @@ import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
 import com.netflix.spinnaker.keel.model.OrchestrationRequest
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.orca.OrcaTaskLauncher
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.netflix.spinnaker.keel.orca.TaskRefResponse
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper
@@ -91,7 +93,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         spec = spec
     )
 
-    private fun resourceModel(replicas: Int = 1) : K8sResourceModel {
+    private fun resourceModel(replicas: Int = 1, specMap: MutableMap<String, Any?> = mutableMapOf() ) : K8sResourceModel {
         val mapper = jacksonObjectMapper()
         val lastApplied = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: ${replicas}"), K8sResourceSpec::class.java)
         return K8sResourceModel(
@@ -108,7 +110,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = mutableMapOf<String, Any>() as K8sSpec
+                spec = specMap
             ),
             metrics = emptyList(),
             moniker = null,
@@ -205,7 +207,8 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context("the K8s resource has been created"){
             before {
-                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel()
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns
+                        resourceModel(1, mutableMapOf("image" to "teset/test:0.1"))
             }
 
             test("the diff is clean") {
@@ -216,6 +219,17 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 }
 
                 expectThat(diff.diff.childCount()).isEqualTo(0)
+            }
+
+            context("fetching current resource") {
+                before {
+                    runBlocking {
+                        current(resource)
+                    }
+                }
+                test("fires a deployed event") {
+                    verify(atLeast = 1) { publisher.publishEvent(ArtifactVersionDeployed(resource.id, "0.1")) }
+                }
             }
         }
 

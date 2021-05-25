@@ -6,7 +6,7 @@ import com.netflix.spinnaker.keel.api.SimpleLocations
 
 interface GenericK8sLocatable : Locatable<SimpleLocations> {
     val metadata: Map<String, String>
-    val template: K8sObjectManifest?
+    val template: K8sManifest?
     val namespace: String
         get() = (template?.metadata?.get(NAMESPACE) ?: NAMESPACE_DEFAULT) as String
 
@@ -14,8 +14,8 @@ interface GenericK8sLocatable : Locatable<SimpleLocations> {
         get() = metadata.getValue(APPLICATION).toString()
 
     override val id: String
-        get() = "${locations.account}-$namespace-${template?.kind}-${template?.metadata?.get(NAME)}".toLowerCase()
+        get() = "${locations.account}-$namespace-${template?.kind}-${template?.name()}".toLowerCase()
 
     override val displayName: String
-        get() = "${locations.account}-$namespace-${template?.kind}-${template?.metadata?.get(NAME)}".toLowerCase()
+        get() = "${locations.account}  $namespace::${template?.kind?.capitalize()}  (${template?.name()})"
 }

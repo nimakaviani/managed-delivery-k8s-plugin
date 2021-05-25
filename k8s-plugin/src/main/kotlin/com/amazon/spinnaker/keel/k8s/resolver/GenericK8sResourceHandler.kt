@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.k8s.resolver
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
+import com.amazon.spinnaker.keel.k8s.model.K8sManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
@@ -18,7 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import retrofit2.HttpException
 
-abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectManifest>(
+abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest>(
     open val cloudDriverK8sService: CloudDriverK8sService,
     open val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
@@ -38,7 +39,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
 
     open suspend fun CloudDriverK8sService.getK8sResource(
         r: Resource<S>,
-    ): R? =
+    ): K8sResourceModel? =
         coroutineScope {
             try {
                 r.spec.template?.let {
@@ -47,7 +48,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
                         r.spec.locations.account,
                         it.namespace(),
                         r.spec.template!!.kindQualifiedName()
-                    ).toResourceModel()
+                    )
                 }
             } catch (e: HttpException) {
                 if (e.code() == 404) {
@@ -59,16 +60,10 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
             }
         }
 
+    // this function needs to be implemented in child classes
+    // when fetching the current resource, instead of deferring
+    // to the more generic Clouddriver function
     abstract suspend fun getK8sResource(r: Resource<S>) : R?
-
-    private fun K8sResourceModel.toResourceModel() : R =
-        K8sObjectManifest(
-            apiVersion = manifest.apiVersion,
-            kind = manifest.kind,
-            metadata = manifest.metadata,
-            spec = manifest.spec,
-            data = manifest.data
-        ) as R
 
     override suspend fun upsert(
         resource: Resource<S>,
@@ -109,4 +104,19 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sObjectMa
                 "enableTraffic" to true.toString()
             )
         )
+
+    fun find(m: MutableMap<String, Any?>, key: String): Any? {
+        m[key]?.let{ return it }
+        m.forEach{
+            if (it.value is Map<*, *>) {
+                val r = it.value as MutableMap<String, Any?>
+                find(r, key)?.let{ nested -> return nested}
+            } else if (it.value is ArrayList<*>) {
+                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
+                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
+                }
+            }
+        }
+        return null
+    }
 }

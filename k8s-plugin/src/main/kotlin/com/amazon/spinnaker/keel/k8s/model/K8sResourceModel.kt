@@ -1,6 +1,6 @@
 package com.amazon.spinnaker.keel.k8s
 
-import com.netflix.spinnaker.keel.api.ExcludedFromDiff
+import com.amazon.spinnaker.keel.k8s.model.K8sManifest
 import com.netflix.spinnaker.keel.api.Moniker
 
 data class K8sResourceModel(
@@ -8,38 +8,10 @@ data class K8sResourceModel(
     val artifacts: List<Any>?,
     val events: List<Any>?,
     val location: String?,
-    val manifest: K8sObjectManifest,
+    val manifest: K8sManifest,
     val metrics: List<Any>?,
     val moniker: Moniker?,
     val name: String?,
     val status: Map<Any, Any>?,
     val warnings: List<Any>?
 )
-
-typealias K8sSpec = MutableMap<String, Any?>
-
-data class K8sData(
-    val account: String? = null,
-    val username: String? = null,
-    val password: String? = null,
-    val identity: String? = null
-)
-
-
-data class K8sObjectManifest(
-    val apiVersion: String?,
-    val kind: String?,
-    @get:ExcludedFromDiff
-    val metadata: Map<String, Any?>,
-    val spec: K8sSpec?,
-    val data: K8sData? = null
-) {
-    fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
-    fun name(): String = metadata[NAME] as String
-
-    // the kind qualified name is the format expected by the clouddriver
-    // e.g. "pod test" would indicate a pod of name "test"
-    fun kindQualifiedName(): String = kind?.let {
-        "${it.toLowerCase()} ${(metadata[NAME] as String)}"
-    } ?: ""
-}
