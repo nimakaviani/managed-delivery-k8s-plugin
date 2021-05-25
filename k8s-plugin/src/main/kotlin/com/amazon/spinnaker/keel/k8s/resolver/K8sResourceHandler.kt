@@ -1,10 +1,8 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
-import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
-import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
+import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -15,6 +13,7 @@ import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
+import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.model.Job
 import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
@@ -33,12 +32,11 @@ class K8sResourceHandler (
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
-    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? {
-        val clusterResource = getK8sResource(resource) ?: return null
-        val mapper = jacksonObjectMapper()
-        val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-        return mapper.readValue<K8sObjectManifest>(lastAppliedConfig)
-    }
+    override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? =
+        super.current(resource)?.let {
+            val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+            return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
+        }
 
     override suspend fun getK8sResource(
         r: Resource<K8sResourceSpec>,

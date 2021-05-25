@@ -2,8 +2,10 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
+import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.isReady
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -13,6 +15,7 @@ import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
+import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 
@@ -49,11 +52,11 @@ class HelmResourceHandler(
         )
     }
 
-    override suspend fun current(resource: Resource<HelmResourceSpec>): K8sObjectManifest? {
-        val clusterResource = getK8sResource(resource) ?: return null
-        val lastAppliedConfig = (clusterResource.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-        return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
-    }
+    override suspend fun current(resource: Resource<HelmResourceSpec>): K8sObjectManifest? =
+        super.current(resource)?.let {
+            val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+            return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
+        }
 
     override suspend fun upsert(
         resource: Resource<HelmResourceSpec>,
