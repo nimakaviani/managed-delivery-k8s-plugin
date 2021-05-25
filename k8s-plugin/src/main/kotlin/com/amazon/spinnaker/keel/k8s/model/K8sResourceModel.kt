@@ -1,11 +1,7 @@
 package com.amazon.spinnaker.keel.k8s
 
-import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.netflix.spinnaker.keel.api.ExcludedFromDiff
 import com.netflix.spinnaker.keel.api.Moniker
-import java.lang.RuntimeException
 
 data class K8sResourceModel(
     val account: String,

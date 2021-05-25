@@ -57,9 +57,9 @@ data class K8sObjectManifest(
     override var apiVersion: String?,
     override var kind: String?,
     @get:ExcludedFromDiff
-    override val metadata: Map<String, Any?>,
-    override val spec: K8sSpec?,
-    override val data: K8sData? = null
+    override var metadata: Map<String, Any?>,
+    override var spec: K8sSpec?,
+    override var data: K8sData? = null
 ) : K8sManifest(apiVersion, kind, metadata, spec, data) {
     override fun name(): String = metadata[NAME] as String
 }
@@ -68,8 +68,8 @@ data class K8sCredentialManifest(
     override var apiVersion: String?,
     override var kind: String?,
     @get:ExcludedFromDiff
-    override val metadata: Map<String, Any?>,
-    override val spec: K8sSpec?,
-    override val data: K8sData? = null) : K8sManifest(apiVersion, kind, metadata, spec, data) {
+    override var metadata: Map<String, Any?>,
+    override var spec: K8sSpec?,
+    override var data: K8sData? = null) : K8sManifest(apiVersion, kind, metadata, spec, data) {
     override fun name(): String = "${metadata[TYPE]}-${data?.account}"
 }

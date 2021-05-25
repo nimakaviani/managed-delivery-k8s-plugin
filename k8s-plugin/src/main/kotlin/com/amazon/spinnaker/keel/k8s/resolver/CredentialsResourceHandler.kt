@@ -2,6 +2,7 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
+import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
@@ -28,6 +29,10 @@ class CredentialsResourceHandler(
     private val encoder: Base64.Encoder = Base64.getMimeEncoder()
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest {
+        if ((resource.spec.template.metadata[TYPE] as String?).isNullOrBlank()) {
+            throw CredResourceTypeMissing("missing \".metadata.type\" for the credential")
+        }
+
         val cred: GitRepoAccountDetails
         try {
             cred = cloudDriverK8sService.getCredentialsDetails(
@@ -103,8 +108,6 @@ class CredentialsResourceHandler(
         resource: Resource<CredentialsResourceSpec>,
         diff: ResourceDiff<K8sCredentialManifest>
     ): List<Task> {
-        resource.spec.template.kind = SECRET
-        resource.spec.template.apiVersion = SECRET_API_V1
         return super.upsert(resource, diff)
     }
 

@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.tests
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
+import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
@@ -10,6 +11,7 @@ import com.amazon.spinnaker.keel.k8s.model.K8sSpec
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
+import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
@@ -91,6 +93,22 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 orcaService,
                 resolvers
             )
+        }
+
+        context("with missing resource type") {
+            var r: Resource<CredentialsResourceSpec>? = null
+            before {
+                var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.metadata = mapOf("namespace" to "default")
+                r = resource(
+                    kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
+                    spec = badSpec
+                )
+            }
+
+            test ("should throw an exception") {
+                expectCatching { toResolvedType(r!!) }.failed().isA<CredResourceTypeMissing>()
+            }
         }
 
         context("credentials exists") {
