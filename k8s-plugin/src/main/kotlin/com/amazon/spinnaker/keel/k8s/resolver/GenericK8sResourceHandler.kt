@@ -4,6 +4,7 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.model.K8sManifest
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.isReady
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
@@ -136,5 +137,45 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
             }
         }
         return null
+    }
+
+    // remove known added labels and annotations for Keel diffing to work
+    protected fun cleanup(r: R): R? {
+        r.spec?.let {
+            it["template"]?.let {  t ->
+                (t as MutableMap<String, Any?>)?.let {
+                    it["metadata"]?.let {
+                        (it as MutableMap<String, MutableMap<String, Any?>>)?.let { metadata ->
+                            metadata["annotations"]?.let { clean(metadata, "annotations") }
+                            metadata["labels"]?.let { clean(metadata, "labels") }
+                        }
+                    }
+                }
+            }
+        }
+
+        r.metadata?.let {
+            val m = it as MutableMap<String, MutableMap<String, Any?>>
+            m["annotations"]?.let { clean(m, "annotations") }
+            m["labels"]?.let { clean(m, "labels") }
+        }
+
+        return r
+    }
+
+    protected fun clean(r: MutableMap<String, MutableMap<String, Any?>>, attr: String) {
+        arrayOf(
+            "artifact.spinnaker.io/location",
+            "artifact.spinnaker.io/name",
+            "artifact.spinnaker.io/type",
+            "artifact.spinnaker.io/version",
+            "moniker.spinnaker.io/application",
+            "moniker.spinnaker.io/cluster",
+            "app.kubernetes.io/managed-by",
+            "app.kubernetes.io/name"
+        ).forEach {
+            r[attr]?.remove(it)
+            r[attr]?.let { if (it.size == 0) r.remove(attr) }
+        }
     }
 }

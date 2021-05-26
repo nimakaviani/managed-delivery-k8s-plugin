@@ -1,7 +1,6 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
-import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -10,14 +9,10 @@ import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
 import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
-import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
-import com.netflix.spinnaker.keel.events.ResourceHealthEvent
-import com.netflix.spinnaker.keel.model.Job
 import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
-import retrofit2.HttpException
 import kotlin.collections.ArrayList
 
 class K8sResourceHandler (
@@ -35,7 +30,7 @@ class K8sResourceHandler (
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? =
         super.current(resource)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-            return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
+            return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }
 
     override suspend fun getK8sResource(
