@@ -93,7 +93,7 @@ class CredentialsResourceHandler(
     override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
         super.current(resource)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-            return jacksonObjectMapper().readValue<K8sCredentialManifest>(lastAppliedConfig)
+            return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }
 
     override suspend fun upsert(

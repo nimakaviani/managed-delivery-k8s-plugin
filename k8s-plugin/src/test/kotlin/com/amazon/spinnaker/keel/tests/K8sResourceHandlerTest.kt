@@ -96,8 +96,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         spec = spec
     )
 
-    private fun resourceModel(replicas: Int = 1, specMap: MutableMap<String, Any?> = mutableMapOf() ) : K8sResourceModel {
-        val lastApplied = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: ${replicas}"), K8sResourceSpec::class.java)
+    private fun resourceModel(k8sManifest: K8sObjectManifest , specMap: MutableMap<String, Any?> = mutableMapOf(),) : K8sResourceModel {
         return K8sResourceModel(
             account = "my-k8s-west-account",
             artifacts = emptyList(),
@@ -109,7 +108,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 metadata = mapOf(
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
-                        K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(lastApplied.template)
+                        K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(k8sManifest)
                     )
                 ),
                 spec = specMap
@@ -208,7 +207,8 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         }
 
         context("the K8s resource has been created"){
-            var resourceModel = resourceModel(1, mutableMapOf("image" to "teset/test:0.1"))
+            val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+            var resourceModel = resourceModel(resourceSpec.template, mutableMapOf("image" to "teset/test:0.1"))
             before {
                 coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel
             }
@@ -267,8 +267,11 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         }
 
         context("the K8s resource has been updated") {
+            val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 2"), K8sResourceSpec::class.java)
             before {
-                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(2)
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                    resourceSpec.template
+                )
             }
 
             test("the diff reflects the new spec and is upserted") {
@@ -294,6 +297,80 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
                 expectThat(slot.captured.job.first()) {
                     get("type").isEqualTo("deployManifest")
+                }
+            }
+        }
+
+        context ("Diffing resources") {
+            context("when there is an annotation diff") {
+                val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+                context("when it is one of the expected annotations") {
+                    before{
+                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["annotations"] = mutableMapOf("artifact.spinnaker.io/location" to "something")
+                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                            resourceSpec.template
+                        )
+                    }
+                    test("there is no diff") {
+                        runBlocking {
+                            val current = current(resource)
+                            val desired = desired(resource)
+                            val diff = DefaultResourceDiff(desired = desired, current = current)
+                            expectThat(diff.hasChanges()).isFalse()
+                        }
+                    }
+                }
+                context("when it is not one of the expected annotations") {
+                    before{
+                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["annotations"] = mutableMapOf("random" to "something")
+                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                            resourceSpec.template
+                        )
+                    }
+                    test("there is a diff"){
+                        runBlocking {
+                            val current = current(resource)
+                            val desired = desired(resource)
+                            val diff = DefaultResourceDiff(desired = desired, current = current)
+                            expectThat(diff.hasChanges()).isTrue()
+                        }
+                    }
+                }
+            }
+
+            context("when there is an label diff") {
+                val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+                context("when it is one of the expected labels") {
+                    before{
+                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["labels"] = mutableMapOf("app.kubernetes.io/name" to "something")
+                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                            resourceSpec.template
+                        )
+                    }
+                    test("there is no diff") {
+                        runBlocking {
+                            val current = current(resource)
+                            val desired = desired(resource)
+                            val diff = DefaultResourceDiff(desired = desired, current = current)
+                            expectThat(diff.hasChanges()).isFalse()
+                        }
+                    }
+                }
+                context("when it is not one of the expected labels") {
+                    before{
+                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["labels"] = mutableMapOf("random" to "something")
+                        coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                            resourceSpec.template
+                        )
+                    }
+                    test("there is a diff"){
+                        runBlocking {
+                            val current = current(resource)
+                            val desired = desired(resource)
+                            val diff = DefaultResourceDiff(desired = desired, current = current)
+                            expectThat(diff.hasChanges()).isTrue()
+                        }
+                    }
                 }
             }
         }
