@@ -53,7 +53,7 @@ class KustomizeResourceHandler(
     override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
         super.current(resource)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-            return jacksonObjectMapper().readValue<K8sObjectManifest>(lastAppliedConfig)
+            return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }
 
     override suspend fun getK8sResource(r: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
