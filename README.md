@@ -2,11 +2,14 @@
 
 ## Requirements
 
-The managed delivery Kubernetes plugin now integrates with Keel v0.189.0.
+The managed delivery Kubernetes plugin now integrates with Keel v0.191.1.
 
 It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
 version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),
 you can also follow instructions on deploying the [CI Build Plugin](https://github.com/nimakaviani/ci-build-plugin).
+
+For better experience, use the following images for respective microservices (the list updates preiodically):
+* Deck: [nimak/spinnaker-deck:0.0.5](https://hub.docker.com/layers/nimak/spinnaker-deck/0.0.5/images/sha256-eab8f3ba56f756dd120db17af6a2910a0e541ff2cc9921671794a2a6208bd626?context=explore)
 
 ## Configuration
 Managed Delivery Kubernetes plugin extends Keel, Clouddriver, and Deck microservices. For Deck, add
@@ -27,7 +30,7 @@ spinnaker:
         url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
 
-For Keel and Clouddriver, add the following to `clouddriver.yml` and `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load plugin.
+For Keel and Clouddriver, add the following to `clouddriver.yml` and `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load the plugin.
 ```yaml
 spinnaker:
     extensibility:
@@ -352,17 +355,72 @@ resources:
           prune: true
           validation: client
 ```
-
 </details>
 
-## Build
+<details>
+<summary>Kubernetes Secrets from Clouddriver Credentials</summary>
+
+**Note:** _This is only supported for Git repositories at the time being_.
+
+To deploy HELM charts or Kustomization resources from private Git repositories, you can instruct 
+the plugin to pull credential information from Clouddriver and add them as Kubernetes secrets 
+to your cluster. 
+
+To do this, in your Clouddriver config file, you will need to provide configuration information
+for your Git repository as follows:
+
+```yaml
+artifacts:
+  gitrepo:
+    enabled: true
+    accounts:
+    - name: sample-repo
+      # you can choose username/password
+      username: 
+      password: 
+      
+      ## or supply sshKey related data
+      sshPrivateKey:
+      sshPrivateKeyFilePath: 
+      sshPrivateKeyPassphrase: 
+      sshPrivateKeyPassphraseCmd: 
+      sshKnownHostsFilePath: 
+      sshTrustUnknownHosts: 
+```
+
+The plugin extends Clouddriver so Git credentials can be queried for through a REST API endpoint.
+
+In your delivery config manifest, you can then add a `k8s/credential@v1` resource that
+provides the reference to the right set of credentials for the plugin to create the Kubernetes secret
+from. An exmple would be like the following:
+
+```yaml
+...
+resources:
+- kind: k8s/credential@v1
+  spec:
+    metadata:
+      application: my-app
+    template:
+      metadata:
+        namespace: default
+        type: git
+      data:
+        account: sample-repo
+```
+
+where the value for `account:` corresponds to the name of the account in your Clouddriver config and 
+the `type` of the credential is set to `git`. This in turn will create a secret named `git-sample-repo` 
+(prepending the credential type to the account name)
+in the `default` namespace, which can be used in your Flux specification of HELM or Kustomize resources.
+</details>
+
+## Build and Test
+
+### Build and Install Locally
 run `./gradlew releaseBundle` and copy the created zip file to
 `/opt/plugin/keel` or your plugin folder of choice. Make sure that the folder is
-writable for the plugin to be unzipped in.
-
-## Install
-
-Enable the plugin by copying the snippet below to your `keel.yml` config file:
+writable for the plugin to be unzipped in. Enable the plugin by copying the snippet below to your `keel.yml` config file:
 
 ```yaml
 spinnaker:
@@ -375,6 +433,32 @@ spinnaker:
     strict-plugin-loading: false
 ```
 
-For use against a remote cluster, you can use the script under `./hack/build.sh` to build and
-upload the plugin to an S3 bucket and use the corresponding URL as a reference when
-configuring Keel in your cluster.
+### Create Test Releases
+
+Under the `hack/` folder, you will find a script that allows you to create a release of 
+the plugin and push it to an Amazon S3 repository which you can then use for test purposes.
+
+For the `hack/build.sh` script to work, in addition to your gradle and java installations, 
+you need to have the AWS CLI and `jq` installed. 
+The `hack/build.sh` script assumes you already have a s3 bucket (default `md-k8s-plugin-bucket`) 
+in a given region (default `s3-us-west-2`) that is accessible via your spinnaker microservices.
+
+Running the script, the plugin and the metadata `plugin.json` files are pushed to the 
+bucket and then you can use the referenced artifact in your respective microservics configuration 
+to test the plugin in deployment.
+
+```yaml
+spinnaker:
+  extensibility:
+    plugins:
+      aws.ManagedDeliveryK8sPlugin:
+        id: aws.ManagedDeliveryK8sPlugin
+        enabled: true
+        version: <<plugin version>>
+    repositories:
+      awsManagedDelvieryK8sPluginRepo:
+        id: awsManagedDelvieryK8sPluginRepo
+        url: https://$BUCKET.$REGION.amazonaws.com/plugins.json
+```
+
+
