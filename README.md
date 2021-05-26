@@ -302,7 +302,6 @@ resources:
 ```
 
 **Note:** _Tracking of charts on HELM repositories is not yet supported in the plugin_.
-</details>
 
 ---
 
@@ -353,6 +352,8 @@ resources:
           prune: true
           validation: client
 ```
+
+</details>
 
 ## Build
 run `./gradlew releaseBundle` and copy the created zip file to
