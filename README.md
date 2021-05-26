@@ -241,7 +241,7 @@ resources:
 
 The plugin relies on [Flux2](https://github.com/fluxcd/flux2) for deployment of HELM and Kustomize resources.
 This relieves the plugin from having to deal with the heavy lifting of managing changes to HELM charts
-or Kustoization sources where that can be delegated to flux.
+or Kustomization sources where that can be delegated to flux.
 
 In order to get HELM deployments working, first you need to install [Flux2](https://github.com/fluxcd/flux2)
 _helm controller_ and _source controller_ into your cluster, with the following command (assuming that you
