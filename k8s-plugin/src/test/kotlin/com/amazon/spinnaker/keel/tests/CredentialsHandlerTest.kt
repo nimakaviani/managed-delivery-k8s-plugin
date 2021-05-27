@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.CREDENTIALS_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.FLUX_SECRETS_TOKEN_USERNAME
 import com.amazon.spinnaker.keel.k8s.K8S_LAST_APPLIED_CONFIG
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
@@ -145,14 +146,17 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                     expectThat(
                         decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                    ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
+                    expectThat(
+                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
-                    expectThat(result.data?.password).isEqualTo("")
                 }
             }
 
             test("should return username and password") {
                 runBlocking {
                     val result = toResolvedType(resource)
+
                     expectThat(
                         decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
@@ -176,10 +180,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     val result = toResolvedType(resource)
                     expectThat(
                         decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
-                    ).isEqualTo("token1")
+                    ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
                     expectThat(
                         decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
-                    ).isEqualTo("")
+                    ).isEqualTo("token1")
                 }
             }
 
