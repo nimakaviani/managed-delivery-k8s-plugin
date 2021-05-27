@@ -45,6 +45,20 @@ class K8sHelmHandler implements IResourceKindConfig {
     }
 }
 
+class K8sKustomizeHandler implements IResourceKindConfig {
+    kind = "k8s/kustomize"
+    iconName: IconNames = "spMenuK8s"
+    experimentalDisplayLink = this.displayLink()
+
+    public displayLink(): ((resource: IManagedResourceSummary) => string) {
+        return function (resource: IManagedResourceSummary) {
+            const path = `#/applications/${resource.moniker?.app}/loadBalancers`
+            const params = `?acct=${resource.locations?.account}`
+            return `${path}${params}`
+        }
+    }
+}
+
 export class k8sManagedDeliveryPlugin implements IManagedDeliveryPlugin {
-    resources: IResourceKindConfig[] = [new K8sResourceHandler(), new K8sCredsHandler(), new K8sHelmHandler()]
+    resources: IResourceKindConfig[] = [new K8sResourceHandler(), new K8sCredsHandler(), new K8sHelmHandler(), new K8sKustomizeHandler()]
 }
