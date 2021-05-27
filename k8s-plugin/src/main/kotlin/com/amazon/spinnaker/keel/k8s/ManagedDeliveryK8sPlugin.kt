@@ -23,7 +23,8 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
                 beanDefinitionFor(HelmResourceHandler::class.java),
                 beanDefinitionFor(K8sResolver::class.java),
                 beanDefinitionFor(DockerImageResolver::class.java),
-                beanDefinitionFor(CredentialsResourceHandler::class.java)
+                beanDefinitionFor(CredentialsResourceHandler::class.java),
+                beanDefinitionFor(KustomizeResourceHandler::class.java)
         ).forEach {
             registerBean(it, registry)
         }
