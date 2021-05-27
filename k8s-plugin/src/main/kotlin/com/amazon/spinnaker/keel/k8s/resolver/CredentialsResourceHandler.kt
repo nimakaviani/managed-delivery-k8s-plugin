@@ -52,10 +52,10 @@ class CredentialsResourceHandler(
         // Priority: token > password > ssh key
         when {
             cred.token.isNotBlank() -> {
-                log.debug("populating token with username in manifest")
+                log.debug("populating password with token in manifest")
                 data = K8sData(
-                    username = encoder.encodeToString(cred.token.toByteArray()),
-                    password = ""
+                    username = encoder.encodeToString(FLUX_SECRETS_TOKEN_USERNAME.toByteArray()),
+                    password = encoder.encodeToString(cred.token.toByteArray())
                 )
             }
             cred.username.isNotBlank() -> {
