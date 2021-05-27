@@ -38,7 +38,9 @@ jobs:
         run: ./gradlew test
 
       - name: build
-        run: if ! [[ -z ${VERSION:?} ]]; then echo "Building release version ${VERSION}"; fi && ./gradlew -Pversion=$VERSION releaseBundle && ls -la ./build/distributions
+        run: |
+          VERSION=${{ steps.get_project_info.outputs.VERSION }}
+          if ! [[ -z ${VERSION:?} ]]; then echo "Building release version ${VERSION}"; fi && ./gradlew -Pversion=$VERSION releaseBundle && ls -la ./build/distributions
 
       - name: create release
         id: create_release
