@@ -113,7 +113,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
                 var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.metadata = mapOf("namespace" to "default")
+                badSpec.template.metadata = mapOf("namespace" to "default", "account" to "account1")
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec

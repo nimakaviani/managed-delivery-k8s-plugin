@@ -31,7 +31,6 @@ class CredentialsResourceSpecTest : JUnit5Minutests {
                         |  metadata:
                         |      namespace: default
                         |      type: git
-                        |  data:
                         |      account: something
                     """.trimMargin()
                 )
