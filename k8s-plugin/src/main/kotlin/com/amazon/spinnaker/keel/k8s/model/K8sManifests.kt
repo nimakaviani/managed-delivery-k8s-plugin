@@ -1,7 +1,9 @@
 package com.amazon.spinnaker.keel.k8s.model
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.netflix.spinnaker.keel.api.ExcludedFromDiff
+import com.fasterxml.jackson.core.type.TypeReference
 import java.lang.RuntimeException
 
 typealias K8sSpec = MutableMap<String, Any?>
@@ -10,8 +12,13 @@ data class K8sData(
     val account: String? = null,
     val username: String? = null,
     val password: String? = null,
-    val identity: String? = null
-)
+    val identity: String? = null,
+    val known_hosts: String? = null
+) {
+    fun toMap(): Map<String, String?> {
+        return jacksonObjectMapper().convertValue(this, object: TypeReference<Map<String, String?>>() {})
+    }
+}
 
 data class Condition(
     val lastTransitionTime: String? = null,
@@ -38,7 +45,7 @@ open class K8sManifest(
     open var kind: String?,
     open var metadata: Map<String, Any?>,
     open var spec: K8sSpec?,
-    open var data: K8sData? = null,
+    open var data: Map<String, Any?>? = null,
     open var status: Status? = null,
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
@@ -80,7 +87,7 @@ data class K8sObjectManifest(
     override var kind: String?,
     override var metadata: Map<String, Any?>,
     override var spec: K8sSpec?,
-    override var data: K8sData? = null,
+    override var data: Map<String, Any?>? = null,
     override var status: Status? = null,
 ) : K8sManifest(apiVersion, kind, metadata, spec, data, status) {
     override fun name(): String = metadata[NAME] as String
@@ -91,8 +98,8 @@ data class K8sCredentialManifest(
     override var kind: String?,
     override var metadata: Map<String, Any?>,
     override var spec: K8sSpec?,
-    override var data: K8sData? = null,
+    override var data: Map<String, Any?>? = null,
     override var status: Status? = null,
 ): K8sManifest(apiVersion, kind, metadata, spec, data, status) {
-    override fun name(): String = "${metadata[TYPE]}-${data?.account}"
+    override fun name(): String = "${metadata[TYPE]}-${metadata[CLOUDDRIVER_ACCOUNT]}"
 }

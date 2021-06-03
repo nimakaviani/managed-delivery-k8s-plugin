@@ -405,7 +405,6 @@ resources:
       metadata:
         namespace: default
         type: git
-      data:
         account: sample-repo
 ```
 

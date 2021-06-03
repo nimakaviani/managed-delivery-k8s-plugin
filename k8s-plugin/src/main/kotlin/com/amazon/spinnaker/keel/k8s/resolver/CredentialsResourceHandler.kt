@@ -34,16 +34,19 @@ class CredentialsResourceHandler(
         if ((resource.spec.template.metadata[TYPE] as String?).isNullOrBlank()) {
             throw CredResourceTypeMissing("missing \".metadata.type\" for the credential")
         }
-
+        if ((resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String?).isNullOrEmpty()) {
+            throw CredResourceTypeMissing("missing \".metadata.account\" for the credential")
+        }
         val cred: GitRepoAccountDetails
+        val clouddriverAccountName = resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String
         try {
             cred = cloudDriverK8sService.getCredentialsDetails(
                 resource.serviceAccount,
-                resource.spec.template.data?.account as String
+                clouddriverAccountName
             )
         } catch (e: HttpException) {
             if (e.code() >= 300) {
-                throw CouldNotRetrieveCredentials(resource.spec.template.data?.account as String, e)
+                throw CouldNotRetrieveCredentials(clouddriverAccountName, e)
             } else {
                 throw e
             }
@@ -82,16 +85,16 @@ class CredentialsResourceHandler(
             SECRET,
             mapOf(
                 "namespace" to resource.spec.namespace,
-                "name" to "${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}",
+                "name" to "${resource.spec.template.metadata["type"]}-${clouddriverAccountName}",
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
             ),
             null,
-            data
+            data.toMap() as Map<String, Any?>?
         )
     }
 
-    override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
-        super.current(resource)?.let {
+    override suspend fun current(r: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
+        super.current(r)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
             return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }
@@ -107,10 +110,10 @@ class CredentialsResourceHandler(
         cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sCredentialManifest>()
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
-        resource.spec.template.data?.account.let {
+        resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT].let {
             log.debug(resource.toString())
             val a =
-                orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}")
+                orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT]}")
             log.debug("actuation in progress? ${a.isNotEmpty()}: $a")
             a.isNotEmpty()
         }

@@ -71,7 +71,6 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |  metadata:
         |    namespace: test-ns
         |    type: git
-        |  data:
         |    account: test-git-repo
     """.trimMargin()
     private val spec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
@@ -126,6 +125,22 @@ class CredentialsHandlerTest : JUnit5Minutests {
             }
         }
 
+        context("with missing clouddriver account") {
+            var r: Resource<CredentialsResourceSpec>? = null
+            before {
+                var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.metadata = mapOf("namespace" to "default", "type" to "git")
+                r = resource(
+                    kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
+                    spec = badSpec
+                )
+            }
+
+            test ("should throw an exception") {
+                expectCatching { toResolvedType(r!!) }.failed().isA<CredResourceTypeMissing>()
+            }
+        }
+
         context("credentials exists") {
             coEvery { cloudDriverK8sService.getCredentialsDetails(any(), "test-git-repo") } returnsMany listOf(
                 GitRepoAccountDetails(token = "token1"),
@@ -145,10 +160,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     }
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
                 }
             }
@@ -158,10 +173,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     val result = toResolvedType(resource)
 
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
                 }
             }
@@ -170,7 +185,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.identity as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("identity") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(privateKey)
                 }
             }
@@ -179,10 +194,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
                 }
             }
@@ -191,12 +206,12 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
-                    expectThat(result.data?.identity).isNull()
+                    expectThat(result.data?.get("identity")).isNull()
                 }
             }
         }
