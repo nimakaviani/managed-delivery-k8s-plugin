@@ -44,10 +44,12 @@ class K8sResourceHandler (
                 // notify change to the k8s vanilla image artifact based
                 // on retrieved data
                 manifest?.let {
-                    val imageString = find(manifest.spec as MutableMap<String, Any?>, IMAGE) as String?
-                    imageString?.let { image ->
-                        log.info("Deployed artifact $image")
-                        notifyArtifactDeployed(r, getTag(image))
+                    if (!it.spec.isNullOrEmpty()) {
+                        val imageString = find(manifest.spec as MutableMap<String, Any?>, IMAGE) as String?
+                        imageString?.let { image ->
+                            log.info("Deployed artifact $image")
+                            notifyArtifactDeployed(r, getTag(image))
+                        }
                     }
                 }
                 manifest
