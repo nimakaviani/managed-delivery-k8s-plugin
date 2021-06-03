@@ -57,14 +57,14 @@ class K8sResourceHandler (
         resource: Resource<K8sResourceSpec>,
         diff: ResourceDiff<K8sObjectManifest>
     ): List<Task> {
-
         // send a notification on attempt to deploy the image artifact
-        val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String?
-        imageString?.let{
-            log.info("Deploying artifact $it")
-            notifyArtifactDeploying(resource, getTag(it))
+        if (!resource.spec.template.spec.isNullOrEmpty()) {
+            val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String?
+            imageString?.let{
+                log.info("Deploying artifact $it")
+                notifyArtifactDeploying(resource, getTag(it))
+            }
         }
-
         // then defer to GenericK8sResourceHandler to deploy
         // k8s resource to the cluster
         return super.upsert(resource, diff)
