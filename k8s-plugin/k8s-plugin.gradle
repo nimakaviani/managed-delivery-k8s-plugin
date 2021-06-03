@@ -18,7 +18,7 @@ repositories {
 spinnakerPlugin {
     serviceName = "keel"
     pluginClass = "com.amazon.spinnaker.keel.k8s.ManagedDeliveryK8sPlugin"
-    requires="orca>=0.0.0"
+    requires="keel>=0.0.0"
     description = 'Plugin to enable K8s in Managed Delivery.'
     version = rootProject.version
 }
