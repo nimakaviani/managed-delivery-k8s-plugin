@@ -3,6 +3,7 @@ package com.amazon.spinnaker.keel.k8s.resolver
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
 import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
+import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
@@ -31,12 +32,13 @@ class CredentialsResourceHandler(
     private val encoder: Base64.Encoder = Base64.getMimeEncoder()
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest {
-        if ((resource.spec.template.metadata[TYPE] as String?).isNullOrBlank()) {
-            throw CredResourceTypeMissing("missing \".metadata.type\" for the credential")
+        try {
+            require(!(resource.spec.template.metadata[TYPE] as String?).isNullOrEmpty()) {"missing \".metadata.type\" field for the credential"}
+            require(!(resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String?).isNullOrEmpty()) {"missing \".metadata.account\" field for the credential"}
+        } catch (e: Exception) {
+            throw MisconfiguredObjectException(e.message!!)
         }
-        if ((resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String?).isNullOrEmpty()) {
-            throw CredResourceTypeMissing("missing \".metadata.account\" for the credential")
-        }
+
         val cred: GitRepoAccountDetails
         val clouddriverAccountName = resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String
         try {

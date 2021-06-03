@@ -65,6 +65,12 @@ class K8sResourceHandler (
                 notifyArtifactDeploying(resource, getTag(it))
             }
         }
+        // Spinnaker versions configMap and secrets by default
+        if (!resource.spec.template.data.isNullOrEmpty()) {
+            val copy =  resource.spec.template.metadata.toMutableMap()
+            copy["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+            resource.spec.template.metadata = copy
+        }
         // then defer to GenericK8sResourceHandler to deploy
         // k8s resource to the cluster
         return super.upsert(resource, diff)

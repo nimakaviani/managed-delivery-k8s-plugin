@@ -5,7 +5,7 @@ import com.amazon.spinnaker.keel.k8s.FLUX_SECRETS_TOKEN_USERNAME
 import com.amazon.spinnaker.keel.k8s.K8S_LAST_APPLIED_CONFIG
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
-import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
+import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
@@ -121,7 +121,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             }
 
             test ("should throw an exception") {
-                expectCatching { toResolvedType(r!!) }.failed().isA<CredResourceTypeMissing>()
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
             }
         }
 
@@ -137,7 +137,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             }
 
             test ("should throw an exception") {
-                expectCatching { toResolvedType(r!!) }.failed().isA<CredResourceTypeMissing>()
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
             }
         }
 
