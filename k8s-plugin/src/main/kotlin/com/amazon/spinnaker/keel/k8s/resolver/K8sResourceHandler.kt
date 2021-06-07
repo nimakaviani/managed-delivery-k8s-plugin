@@ -70,7 +70,13 @@ class K8sResourceHandler (
         // Spinnaker versions configMap and secrets by default
         if (!resource.spec.template.data.isNullOrEmpty()) {
             val copy =  resource.spec.template.metadata.toMutableMap()
-            copy["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+            if (copy.containsKey("annotations")) {
+                val copyMap = (copy["annotations"] as Map<String, Any?>).toMutableMap()
+                copyMap["strategy.spinnaker.io/versioned"] = "false"
+                copy["annotations"] = copyMap
+            } else {
+                copy["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+            }
             resource.spec.template.metadata = copy
         }
         // then defer to GenericK8sResourceHandler to deploy

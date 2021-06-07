@@ -4,7 +4,6 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.model.K8sManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.isReady
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource

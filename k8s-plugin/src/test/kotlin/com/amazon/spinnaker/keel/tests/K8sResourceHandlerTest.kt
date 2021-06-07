@@ -38,7 +38,6 @@ import retrofit2.Response
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.assertions.*
-import java.net.SocketTimeoutException
 import java.util.*
 
 @Suppress("UNCHECKED_CAST")
@@ -60,6 +59,23 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
     private val resolvers: List<Resolver<*>> = listOf(
         K8sResolver()
     )
+    private val dataYaml = """
+        |---
+        |locations:
+        |  account: my-k8s-west-account
+        |  regions: []
+        |metadata:
+        |  application: test
+        |template:
+        |  apiVersion: "v1"
+        |  kind: ConfigMap
+        |  metadata:
+        |    name: hello-kubernetes
+        |    namespace: hello
+        |  data:
+        |    replicas: 123
+        |    game.properties: food=ramen
+    """.trimMargin()
 
     private val yaml = """
         |---
@@ -370,6 +386,86 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                             val diff = DefaultResourceDiff(desired = desired, current = current)
                             expectThat(diff.hasChanges()).isTrue()
                         }
+                    }
+                }
+            }
+        }
+
+        context("when configmap is used") {
+            val deployed = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
+            val desired = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
+            val desiredSpec = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = desired
+            )
+            val specWithAnnotation = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
+            val copy = specWithAnnotation.template.metadata.toMutableMap()
+            copy["annotations"] = mapOf("dont-change-me" to "please")
+            specWithAnnotation.template.metadata = copy
+            val annotationSpec = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = specWithAnnotation
+            )
+
+            context("when data field is present") {
+                before{
+                    coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returnsMany listOf(
+                        resourceModel(
+                            desired.template
+                        ),
+                        resourceModel(
+                            deployed.template
+                        )
+                    )
+                }
+
+
+                test("eventPublisher is never called") {
+                    runBlocking {
+                        current(desiredSpec)
+                        verify(exactly = 0) {publisher.publishEvent(any())}
+                    }
+                }
+
+                test("there is no diff") {
+                    runBlocking {
+                        val currentResource = current(desiredSpec)
+                        val desiredResource = desired(desiredSpec)
+                        val diff = DefaultResourceDiff(desired = desiredResource, current = currentResource)
+                        expectThat(diff.hasChanges()).isFalse()
+                    }
+                }
+
+                test("spinnaker annotation is added") {
+                    runBlocking {
+                        val currentResource = current(desiredSpec)
+                        val desiredResource = desired(desiredSpec)
+                        upsert(desiredSpec, DefaultResourceDiff(desired = desiredResource, current = currentResource))
+                        val slots = mutableListOf<OrchestrationRequest>()
+                        coVerify { orcaService.orchestrate("keel@spinnaker", capture(slots)) }
+
+                        val resources = slots.first().job.first()["manifests"] as List<K8sObjectManifest>
+                        expectThat(resources.first().metadata.containsKey("annotations")).isTrue()
+
+                        val annotations = resources.first().metadata["annotations"] as Map<String, Any>
+                        expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
+                    }
+                }
+
+                test("annotation is preserved") {
+                    runBlocking {
+                        val currentResource = current(annotationSpec)
+                        val desiredResource = desired(annotationSpec)
+                        upsert(annotationSpec, DefaultResourceDiff(desired = desiredResource, current = currentResource))
+                        val slots = mutableListOf<OrchestrationRequest>()
+                        coVerify { orcaService.orchestrate("keel@spinnaker", capture(slots)) }
+
+                        val resources = slots.first().job.first()["manifests"] as List<K8sObjectManifest>
+                        expectThat(resources.first().metadata.containsKey("annotations")).isTrue()
+
+                        val annotations = resources.first().metadata["annotations"] as Map<String, Any>
+                        expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
+                        expectThat(annotations["dont-change-me"]).isEqualTo("please")
                     }
                 }
             }
