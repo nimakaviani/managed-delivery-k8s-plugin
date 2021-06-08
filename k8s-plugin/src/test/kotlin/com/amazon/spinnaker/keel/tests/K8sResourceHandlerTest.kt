@@ -393,6 +393,10 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context("when configmap is used") {
             val deployed = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
+            val deployedMetadata = deployed.template.metadata.toMutableMap()
+            deployedMetadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+            deployed.template.metadata = deployedMetadata.toMap()
+
             val desired = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
             val desiredSpec = resource(
                 kind = K8S_RESOURCE_SPEC_V1.kind,
@@ -407,18 +411,37 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 spec = specWithAnnotation
             )
 
-            context("when data field is present") {
-                before{
-                    coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returnsMany listOf(
-                        resourceModel(
-                            desired.template
-                        ),
-                        resourceModel(
-                            deployed.template
-                        )
+
+            context("when configMap with annotation is present") {
+                before {
+                    coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                        specWithAnnotation.template
                     )
                 }
 
+                test("spinnaker annotation is added") {
+                    runBlocking {
+                        val currentResource = current(annotationSpec)
+                        val desiredResource = desired(desiredSpec)
+                        upsert(desiredSpec, DefaultResourceDiff(desired = desiredResource, current = currentResource))
+                        val slots = mutableListOf<OrchestrationRequest>()
+                        coVerify { orcaService.orchestrate("keel@spinnaker", capture(slots)) }
+
+                        val resources = slots.first().job.first()["manifests"] as List<K8sObjectManifest>
+                        expectThat(resources.first().metadata.containsKey("annotations")).isTrue()
+
+                        val annotations = resources.first().metadata["annotations"] as Map<String, Any>
+                        expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
+                    }
+                }
+            }
+
+            context("when no configMap with annotation is present") {
+                before{
+                    coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                        deployed.template
+                    )
+                }
 
                 test("eventPublisher is never called") {
                     runBlocking {
@@ -436,23 +459,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     }
                 }
 
-                test("spinnaker annotation is added") {
-                    runBlocking {
-                        val currentResource = current(desiredSpec)
-                        val desiredResource = desired(desiredSpec)
-                        upsert(desiredSpec, DefaultResourceDiff(desired = desiredResource, current = currentResource))
-                        val slots = mutableListOf<OrchestrationRequest>()
-                        coVerify { orcaService.orchestrate("keel@spinnaker", capture(slots)) }
-
-                        val resources = slots.first().job.first()["manifests"] as List<K8sObjectManifest>
-                        expectThat(resources.first().metadata.containsKey("annotations")).isTrue()
-
-                        val annotations = resources.first().metadata["annotations"] as Map<String, Any>
-                        expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
-                    }
-                }
-
-                test("annotation is preserved") {
+                test("annotation in desired spec is preserved") {
                     runBlocking {
                         val currentResource = current(annotationSpec)
                         val desiredResource = desired(annotationSpec)

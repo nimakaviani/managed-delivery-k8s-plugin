@@ -33,8 +33,8 @@ class CredentialsResourceHandler(
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest {
         try {
-            require(!(resource.spec.template.metadata[TYPE] as String?).isNullOrEmpty()) {"missing \".metadata.type\" field for the credential"}
-            require(!(resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String?).isNullOrEmpty()) {"missing \".metadata.account\" field for the credential"}
+            require(!(resource.spec.template.metadata[TYPE] as String?).isNullOrEmpty()) {"missing or empty \".metadata.type\" field for the credential"}
+            require(!(resource.spec.template.metadata[CLOUDDRIVER_ACCOUNT] as String?).isNullOrEmpty()) {"missing or empty \".metadata.account\" field for the credential"}
         } catch (e: Exception) {
             throw MisconfiguredObjectException(e.message!!)
         }
@@ -95,8 +95,8 @@ class CredentialsResourceHandler(
         )
     }
 
-    override suspend fun current(r: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
-        super.current(r)?.let {
+    override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =
+        super.current(resource)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
             return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
         }

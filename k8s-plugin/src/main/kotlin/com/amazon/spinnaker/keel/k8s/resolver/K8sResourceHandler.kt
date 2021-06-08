@@ -13,7 +13,6 @@ import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
-import kotlin.collections.ArrayList
 
 class K8sResourceHandler (
     override val cloudDriverK8sService: CloudDriverK8sService,
@@ -27,6 +26,22 @@ class K8sResourceHandler (
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
+    override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sObjectManifest {
+        // Spinnaker versions configMap and secrets by default
+        resource.spec.template.data?.let {
+            val copyMetadata = resource.spec.template.metadata.toMutableMap()
+            if (copyMetadata.containsKey("annotations")) {
+                val copyAnnotation = (copyMetadata["annotations"] as Map<String, Any?>).toMutableMap()
+                copyAnnotation["strategy.spinnaker.io/versioned"] = "false"
+                copyMetadata["annotations"] = copyAnnotation
+            } else {
+                copyMetadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+            }
+            resource.spec.template.metadata = copyMetadata
+        }
+        return resource.spec.template
+    }
+
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? =
         super.current(resource)?.let {
             val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
@@ -37,22 +52,20 @@ class K8sResourceHandler (
         r: Resource<K8sResourceSpec>,
     ): K8sObjectManifest? =
         coroutineScope {
-                // defer to GenericK8sResourceHandler to get the resource
-                // from the k8s cluster
-                val manifest = cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sObjectManifest>()
+            // defer to GenericK8sResourceHandler to get the resource
+            // from the k8s cluster
+            val manifest = cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sObjectManifest>()
 
-                // notify change to the k8s vanilla image artifact based
-                // on retrieved data
-                manifest?.let {
-                    if (!it.spec.isNullOrEmpty()) {
-                        val imageString = find(manifest.spec as MutableMap<String, Any?>, IMAGE) as String?
-                        imageString?.let { image ->
-                            log.info("Deployed artifact $image")
-                            notifyArtifactDeployed(r, getTag(image))
-                        }
-                    }
+            // notify change to the k8s vanilla image artifact based
+            // on retrieved data
+            manifest?.let {
+                val imageString = find(it.spec ?: mutableMapOf(), IMAGE) as String?
+                imageString?.let { image ->
+                    log.info("Deployed artifact $image")
+                    notifyArtifactDeployed(r, getTag(image))
                 }
-                manifest
+            }
+            manifest
         }
 
     override suspend fun upsert(
@@ -60,24 +73,10 @@ class K8sResourceHandler (
         diff: ResourceDiff<K8sObjectManifest>
     ): List<Task> {
         // send a notification on attempt to deploy the image artifact
-        if (!resource.spec.template.spec.isNullOrEmpty()) {
-            val imageString = find(resource.spec.template.spec as MutableMap<String, Any?>, "image") as String?
-            imageString?.let{
-                log.info("Deploying artifact $it")
-                notifyArtifactDeploying(resource, getTag(it))
-            }
-        }
-        // Spinnaker versions configMap and secrets by default
-        if (!resource.spec.template.data.isNullOrEmpty()) {
-            val copy =  resource.spec.template.metadata.toMutableMap()
-            if (copy.containsKey("annotations")) {
-                val copyMap = (copy["annotations"] as Map<String, Any?>).toMutableMap()
-                copyMap["strategy.spinnaker.io/versioned"] = "false"
-                copy["annotations"] = copyMap
-            } else {
-                copy["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
-            }
-            resource.spec.template.metadata = copy
+        val imageString = find(resource.spec.template.spec ?: mutableMapOf(), "image") as String?
+        imageString?.let{
+            log.info("Deploying artifact $it")
+            notifyArtifactDeploying(resource, getTag(it))
         }
         // then defer to GenericK8sResourceHandler to deploy
         // k8s resource to the cluster

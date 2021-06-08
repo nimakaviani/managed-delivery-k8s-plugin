@@ -67,17 +67,17 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     // to the more generic Clouddriver function
     abstract suspend fun getK8sResource(r: Resource<S>) : R?
 
-    override suspend fun current(r: Resource<S>): R? =
-        getK8sResource(r)?.let{
+    override suspend fun current(resource: Resource<S>): R? =
+        getK8sResource(resource)?.let{
             log.debug("response from clouddriver for manifest: $it")
             it.status?.let {
                 if (it.isReady()) {
-                    log.info("${r.spec.displayName} is healthy" )
-                    eventPublisher.publishEvent(ResourceHealthEvent(r, true))
+                    log.info("${resource.spec.displayName} is healthy" )
+                    eventPublisher.publishEvent(ResourceHealthEvent(resource, true))
                 } else {
-                    log.info("${r.spec.displayName} is not healthy")
-                    eventPublisher.publishEvent(ResourceHealthEvent(r, false))
-                    throw ResourceNotReady(r)
+                    log.info("${resource.spec.displayName} is not healthy")
+                    eventPublisher.publishEvent(ResourceHealthEvent(resource, false))
+                    throw ResourceNotReady(resource)
                 }
             }
             it
@@ -170,7 +170,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
             "artifact.spinnaker.io/version",
             "moniker.spinnaker.io/application",
             "moniker.spinnaker.io/cluster",
-            "strategy.spinnaker.io/versioned",
+//            "strategy.spinnaker.io/versioned",
             "app.kubernetes.io/managed-by",
             "app.kubernetes.io/name"
         ).forEach {
