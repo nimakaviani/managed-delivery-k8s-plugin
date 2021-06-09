@@ -42,7 +42,7 @@ inline fun Status.isReady() : Boolean {
 open class K8sManifest(
     open var apiVersion: String?,
     open var kind: String?,
-    open var metadata: Map<String, Any?>,
+    open var metadata: MutableMap<String, Any?>,
     open var spec: K8sBlob?,
     open var data: K8sBlob? = null,
     open var status: Status? = null,
@@ -84,7 +84,7 @@ open class K8sManifest(
 data class K8sObjectManifest(
     override var apiVersion: String?,
     override var kind: String?,
-    override var metadata: Map<String, Any?>,
+    override var metadata: MutableMap<String, Any?>,
     override var spec: K8sBlob?,
     override var data: K8sBlob? = null,
     override var status: Status? = null,
@@ -95,7 +95,7 @@ data class K8sObjectManifest(
 data class K8sCredentialManifest(
     override var apiVersion: String?,
     override var kind: String?,
-    override var metadata: Map<String, Any?>,
+    override var metadata: MutableMap<String, Any?>,
     override var spec: K8sBlob?,
     override var data: K8sBlob? = null,
     override var status: Status? = null,

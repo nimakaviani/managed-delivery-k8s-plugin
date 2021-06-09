@@ -28,16 +28,18 @@ class K8sResourceHandler (
 
     override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sObjectManifest {
         // Spinnaker versions configMap and secrets by default
-        resource.spec.template.data?.let {
-            val copyMetadata = resource.spec.template.metadata.toMutableMap()
-            if (copyMetadata.containsKey("annotations")) {
-                val copyAnnotation = (copyMetadata["annotations"] as Map<String, Any?>).toMutableMap()
-                copyAnnotation["strategy.spinnaker.io/versioned"] = "false"
-                copyMetadata["annotations"] = copyAnnotation
-            } else {
-                copyMetadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+        if (resource.spec.template.kind == "Secret" || resource.spec.template.kind == "ConfigMap") {
+            resource.spec.template.data?.let {
+                val copyMetadata = resource.spec.template.metadata
+                if (copyMetadata.containsKey("annotations")) {
+                    val annotations = (copyMetadata["annotations"] as Map<String, Any?>).toMutableMap()
+                    annotations["strategy.spinnaker.io/versioned"] = "false"
+                    copyMetadata["annotations"] = annotations
+                } else {
+                    copyMetadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+                }
+                resource.spec.template.metadata = copyMetadata
             }
-            resource.spec.template.metadata = copyMetadata
         }
         return resource.spec.template
     }

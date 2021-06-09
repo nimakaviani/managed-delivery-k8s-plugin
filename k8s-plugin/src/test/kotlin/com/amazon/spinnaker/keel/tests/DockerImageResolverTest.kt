@@ -56,7 +56,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
             template = K8sObjectManifest(
                 apiVersion = "apps/v1",
                 kind = "Deployment",
-                metadata = mapOf(
+                metadata = mutableMapOf(
                     "name" to "hello-kubernetes",
                     "namespace" to NAMESPACE_DEFAULT
                 ),
@@ -87,7 +87,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
             template = K8sObjectManifest(
                 apiVersion = "v1",
                 kind = "Service",
-                metadata = mapOf(
+                metadata = mutableMapOf(
                     "name" to "hello-svc",
                     "namespace" to NAMESPACE_DEFAULT
                 ),

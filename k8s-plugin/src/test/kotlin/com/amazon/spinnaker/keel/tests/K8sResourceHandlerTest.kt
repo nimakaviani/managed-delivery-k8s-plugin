@@ -59,7 +59,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
     private val resolvers: List<Resolver<*>> = listOf(
         K8sResolver()
     )
-    private val dataYaml = """
+    private val configMapYaml = """
         |---
         |locations:
         |  account: my-k8s-west-account
@@ -75,6 +75,23 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |  data:
         |    replicas: 123
         |    game.properties: food=ramen
+    """.trimMargin()
+
+    private val dataYaml = """
+        |---
+        |locations:
+        |  account: my-k8s-west-account
+        |  regions: []
+        |metadata:
+        |  application: test
+        |template:
+        |  apiVersion: "v1"
+        |  kind: NotConfigMap
+        |  metadata:
+        |    name: hello-kubernetes
+        |    namespace: hello
+        |  data:
+        |    please: do-not-touch
     """.trimMargin()
 
     private val yaml = """
@@ -121,7 +138,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
             manifest = K8sObjectManifest(
                 apiVersion = "apps/v1",
                 kind = "Deployment",
-                metadata = mapOf(
+                metadata = mutableMapOf(
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
                         K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(k8sManifest)
@@ -391,26 +408,57 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
             }
         }
 
-        context("when configmap is used") {
-            val deployed = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
-            val deployedMetadata = deployed.template.metadata.toMutableMap()
-            deployedMetadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
-            deployed.template.metadata = deployedMetadata.toMap()
-
+        context("when spec with data field that is not secret or configMap is used") {
             val desired = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
             val desiredSpec = resource(
                 kind = K8S_RESOURCE_SPEC_V1.kind,
                 spec = desired
             )
-            val specWithAnnotation = yamlMapper.readValue(dataYaml, K8sResourceSpec::class.java)
-            val copy = specWithAnnotation.template.metadata.toMutableMap()
-            copy["annotations"] = mapOf("dont-change-me" to "please")
-            specWithAnnotation.template.metadata = copy
+            val current = yamlMapper.readValue(configMapYaml, K8sResourceSpec::class.java)
+            val currentSpec = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = current
+            )
+
+            before {
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
+                    current.template
+                )
+            }
+
+            test("spinnaker annotation is not added") {
+                runBlocking {
+                    val currentResource = current(currentSpec)
+                    val desiredResource = desired(desiredSpec)
+                    upsert(desiredSpec, DefaultResourceDiff(desired = desiredResource, current = currentResource))
+                    val slots = mutableListOf<OrchestrationRequest>()
+                    coVerify { orcaService.orchestrate("keel@spinnaker", capture(slots)) }
+
+                    val resources = slots.first().job.first()["manifests"] as List<K8sObjectManifest>
+                    val metadata = resources.first().metadata
+                    expectThat(metadata)
+                        .hasEntry("name", "hello-kubernetes")
+                        .hasEntry("namespace", "hello")
+                        .hasSize(2)
+                }
+            }
+        }
+
+        context("when configmap is used") {
+            val deployed = yamlMapper.readValue(configMapYaml, K8sResourceSpec::class.java)
+            deployed.template.metadata["annotations"] = mapOf("strategy.spinnaker.io/versioned" to "false")
+
+            val desired = yamlMapper.readValue(configMapYaml, K8sResourceSpec::class.java)
+            val desiredSpec = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = desired
+            )
+            val specWithAnnotation = yamlMapper.readValue(configMapYaml, K8sResourceSpec::class.java)
+            specWithAnnotation.template.metadata["annotations"] = mapOf("dont-change-me" to "please")
             val annotationSpec = resource(
                 kind = K8S_RESOURCE_SPEC_V1.kind,
                 spec = specWithAnnotation
             )
-
 
             context("when configMap with annotation is present") {
                 before {

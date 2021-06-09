@@ -298,7 +298,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 manifest = K8sObjectManifest(
                     apiVersion = "v1",
                     kind = "Secret",
-                    metadata = mapOf(
+                    metadata = mutableMapOf(
                         "name" to "test-git-repo",
                         "annotations" to mapOf(
                                 K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(lastApplied)

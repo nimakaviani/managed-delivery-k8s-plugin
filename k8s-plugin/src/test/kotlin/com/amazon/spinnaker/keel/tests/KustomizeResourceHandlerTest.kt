@@ -127,7 +127,7 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
             manifest = K8sObjectManifest(
                 apiVersion = "kustomize.toolkit.fluxcd.io/v1beta1",
                 kind = "Kustomization",
-                metadata = mapOf(
+                metadata = mutableMapOf(
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)

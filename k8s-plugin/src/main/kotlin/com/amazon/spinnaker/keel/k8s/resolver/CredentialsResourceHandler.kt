@@ -82,7 +82,7 @@ class CredentialsResourceHandler(
         return K8sCredentialManifest(
             SECRET_API_V1,
             SECRET,
-            mapOf(
+            mutableMapOf(
                 "namespace" to resource.spec.namespace,
                 "name" to "${credType}-${clouddriverAccountName}",
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
