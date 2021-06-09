@@ -66,8 +66,6 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: v1
-        |  kind: Secret
         |  metadata:
         |    namespace: test-ns
         |  data:
