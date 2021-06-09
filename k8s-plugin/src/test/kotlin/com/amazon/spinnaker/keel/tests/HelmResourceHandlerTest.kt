@@ -127,13 +127,13 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
             manifest = K8sObjectManifest(
                 apiVersion = "source.toolkit.fluxcd.io/v1beta1",
                 kind = "HelmRepository",
-                metadata = mapOf(
+                metadata = mutableMapOf(
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = mutableMapOf<String, Any>() as K8sSpec
+                spec = mutableMapOf<String, Any>() as K8sBlob
             ),
             metrics = emptyList(),
             moniker = null,

@@ -5,12 +5,12 @@ import com.amazon.spinnaker.keel.k8s.FLUX_SECRETS_TOKEN_USERNAME
 import com.amazon.spinnaker.keel.k8s.K8S_LAST_APPLIED_CONFIG
 import com.amazon.spinnaker.keel.k8s.K8sResourceModel
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
-import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
+import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
 import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sBlob
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -66,13 +66,11 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |metadata:
         |  application: test
         |template:
-        |  apiVersion: v1
-        |  kind: Secret
         |  metadata:
         |    namespace: test-ns
-        |    type: git
         |  data:
         |    account: test-git-repo
+        |    type: git
     """.trimMargin()
     private val spec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
     private val resource = resource(
@@ -113,8 +111,8 @@ class CredentialsHandlerTest : JUnit5Minutests {
         context("with missing resource type") {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
-                var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.metadata = mapOf("namespace" to "default")
+                val badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.data?.remove("type")
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec
@@ -122,7 +120,47 @@ class CredentialsHandlerTest : JUnit5Minutests {
             }
 
             test ("should throw an exception") {
-                expectCatching { toResolvedType(r!!) }.failed().isA<CredResourceTypeMissing>()
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
+            }
+
+            test ("should indicate nothing is being actuated") {
+                runBlocking {
+                    expectThat(
+                        actuationInProgress(r!!)
+                    ).isFalse()
+                }
+            }
+        }
+
+        context("with missing clouddriver account") {
+            var r: Resource<CredentialsResourceSpec>? = null
+            before {
+                var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.data?.remove("account")
+                r = resource(
+                    kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
+                    spec = badSpec
+                )
+            }
+
+            test ("should throw an exception") {
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
+            }
+        }
+
+        context("with empty clouddriver account") {
+            var r: Resource<CredentialsResourceSpec>? = null
+            before {
+                val badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.data?.set("account", "")
+                r = resource(
+                    kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
+                    spec = badSpec
+                )
+            }
+
+            test ("should throw an exception") {
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
             }
         }
 
@@ -145,10 +183,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     }
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
                 }
             }
@@ -158,10 +196,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     val result = toResolvedType(resource)
 
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
                 }
             }
@@ -170,7 +208,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.identity as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("identity") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(privateKey)
                 }
             }
@@ -179,10 +217,10 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo(FLUX_SECRETS_TOKEN_USERNAME)
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("token1")
                 }
             }
@@ -191,12 +229,12 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val result = toResolvedType(resource)
                     expectThat(
-                        decoder.decode(result.data?.username as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("username") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testUser")
                     expectThat(
-                        decoder.decode(result.data?.password as String).toString(Charsets.UTF_8)
+                        decoder.decode(result.data?.get("password") as String).toString(Charsets.UTF_8)
                     ).isEqualTo("testPass")
-                    expectThat(result.data?.identity).isNull()
+                    expectThat(result.data?.get("identity")).isNull()
                 }
             }
         }
@@ -260,13 +298,13 @@ class CredentialsHandlerTest : JUnit5Minutests {
                 manifest = K8sObjectManifest(
                     apiVersion = "v1",
                     kind = "Secret",
-                    metadata = mapOf(
+                    metadata = mutableMapOf(
                         "name" to "test-git-repo",
                         "annotations" to mapOf(
                                 K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(lastApplied)
                         )
                     ),
-                    spec = mutableMapOf<String, Any>() as K8sSpec
+                    spec = mutableMapOf<String, Any>() as K8sBlob
                 )
                 clearMocks(cloudDriverK8sService)
                 coEvery {

@@ -404,9 +404,9 @@ resources:
     template:
       metadata:
         namespace: default
-        type: git
       data:
         account: sample-repo
+        type: git
 ```
 
 where the value for `account:` corresponds to the name of the account in your Clouddriver config and 

@@ -4,7 +4,6 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
 import com.amazon.spinnaker.keel.k8s.model.K8sManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.isReady
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.netflix.spinnaker.keel.api.Resource
@@ -68,17 +67,17 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     // to the more generic Clouddriver function
     abstract suspend fun getK8sResource(r: Resource<S>) : R?
 
-    override suspend fun current(r: Resource<S>): R? =
-        getK8sResource(r)?.let{
+    override suspend fun current(resource: Resource<S>): R? =
+        getK8sResource(resource)?.let{
             log.debug("response from clouddriver for manifest: $it")
             it.status?.let {
                 if (it.isReady()) {
-                    log.info("${r.spec.displayName} is healthy" )
-                    eventPublisher.publishEvent(ResourceHealthEvent(r, true))
+                    log.info("${resource.spec.displayName} is healthy" )
+                    eventPublisher.publishEvent(ResourceHealthEvent(resource, true))
                 } else {
-                    log.info("${r.spec.displayName} is not healthy")
-                    eventPublisher.publishEvent(ResourceHealthEvent(r, false))
-                    throw ResourceNotReady(r)
+                    log.info("${resource.spec.displayName} is not healthy")
+                    eventPublisher.publishEvent(ResourceHealthEvent(resource, false))
+                    throw ResourceNotReady(resource)
                 }
             }
             it

@@ -2,11 +2,8 @@ package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.CouldNotRetrieveCredentials
-import com.amazon.spinnaker.keel.k8s.exception.CredResourceTypeMissing
-import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
-import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
-import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sData
+import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
+import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -31,62 +28,67 @@ class CredentialsResourceHandler(
     private val encoder: Base64.Encoder = Base64.getMimeEncoder()
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest {
-        if ((resource.spec.template.metadata[TYPE] as String?).isNullOrBlank()) {
-            throw CredResourceTypeMissing("missing \".metadata.type\" for the credential")
+        try {
+            require(!(resource.spec.template.data?.get(TYPE) as String?).isNullOrEmpty()) {"missing or empty \".metadata.type\" field for the credential"}
+            require(!(resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT) as String?).isNullOrEmpty()) {"missing or empty \".metadata.account\" field for the credential"}
+        } catch (e: Exception) {
+            throw MisconfiguredObjectException(e.message!!)
         }
 
         val cred: GitRepoAccountDetails
+        val clouddriverAccountName = resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT) as String
+        val credType = resource.spec.template.data?.get(TYPE) as String
         try {
             cred = cloudDriverK8sService.getCredentialsDetails(
                 resource.serviceAccount,
-                resource.spec.template.data?.account as String
+                clouddriverAccountName
             )
         } catch (e: HttpException) {
             if (e.code() >= 300) {
-                throw CouldNotRetrieveCredentials(resource.spec.template.data?.account as String, e)
+                throw CouldNotRetrieveCredentials(clouddriverAccountName, e)
             } else {
                 throw e
             }
         }
-        val data: K8sData
+        val data: FluxCredential
         // Priority: token > password > ssh key
         when {
             cred.token.isNotBlank() -> {
                 log.debug("populating password with token in manifest")
-                data = K8sData(
+                data = FluxCredential(
                     username = encoder.encodeToString(FLUX_SECRETS_TOKEN_USERNAME.toByteArray()),
                     password = encoder.encodeToString(cred.token.toByteArray())
                 )
             }
             cred.username.isNotBlank() -> {
                 log.debug("populating username and password in manifest")
-                data = K8sData(
+                data = FluxCredential(
                     username = encoder.encodeToString(cred.username.toByteArray()),
                     password = encoder.encodeToString(cred.password.toByteArray())
                 )
             }
             cred.sshPrivateKey.isNotBlank() -> {
                 log.debug("populating private key in manifest")
-                data = K8sData(
+                data = FluxCredential(
                     identity = encoder.encodeToString(cred.sshPrivateKey.toByteArray())
                 )
             }
             else -> {
                 log.info("token, username/password, or ssh key was not returned by clouddriver")
-                data = K8sData()
+                data = FluxCredential()
             }
         }
         // setting strategy.spinnaker.io/versioned is needed to avoid creating secrets with versioned names e.g. testing1-v000
         return K8sCredentialManifest(
             SECRET_API_V1,
             SECRET,
-            mapOf(
+            mutableMapOf(
                 "namespace" to resource.spec.namespace,
-                "name" to "${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}",
+                "name" to "${credType}-${clouddriverAccountName}",
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
             ),
             null,
-            data
+            data.toK8sBlob() as K8sBlob?
         )
     }
 
@@ -107,11 +109,13 @@ class CredentialsResourceHandler(
         cloudDriverK8sService.getK8sResource(r)?.manifest?.to<K8sCredentialManifest>()
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
-        resource.spec.template.data?.account.let {
-            log.debug(resource.toString())
-            val a =
-                orcaService.getCorrelatedExecutions("${resource.spec.template.metadata["type"]}-${resource.spec.template.data?.account}")
-            log.debug("actuation in progress? ${a.isNotEmpty()}: $a")
-            a.isNotEmpty()
-        }
+        resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT)?.let { accountName ->
+            resource.spec.template.data?.get(TYPE)?.let { type ->
+                log.debug(resource.toString())
+                val ids =
+                    orcaService.getCorrelatedExecutions("${type}-${accountName}")
+                log.debug("actuation in progress? ${ids.isNotEmpty()}: $ids")
+                ids.isNotEmpty()
+            }
+        } ?: false
 }
