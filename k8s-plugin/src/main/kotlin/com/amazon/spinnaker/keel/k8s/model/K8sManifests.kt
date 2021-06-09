@@ -100,5 +100,5 @@ data class K8sCredentialManifest(
     override var data: K8sBlob? = null,
     override var status: Status? = null,
 ): K8sManifest(apiVersion, kind, metadata, spec, data, status) {
-    override fun name(): String = "${metadata[TYPE]}-${data?.get(CLOUDDRIVER_ACCOUNT)}"
+    override fun name(): String = "${data?.get(TYPE)}-${data?.get(CLOUDDRIVER_ACCOUNT)}"
 }

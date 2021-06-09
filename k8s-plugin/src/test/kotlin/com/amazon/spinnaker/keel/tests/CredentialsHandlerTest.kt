@@ -70,9 +70,9 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |  kind: Secret
         |  metadata:
         |    namespace: test-ns
-        |    type: git
         |  data:
         |    account: test-git-repo
+        |    type: git
     """.trimMargin()
     private val spec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
     private val resource = resource(
@@ -114,7 +114,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
                 val badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.metadata = mapOf("namespace" to "default")
+                badSpec.template.data?.remove("type")
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec
@@ -138,7 +138,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
                 var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.data = null
+                badSpec.template.data?.remove("account")
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec

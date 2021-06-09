@@ -29,7 +29,7 @@ class CredentialsResourceHandler(
 
     public override suspend fun toResolvedType(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest {
         try {
-            require(!(resource.spec.template.metadata[TYPE] as String?).isNullOrEmpty()) {"missing or empty \".metadata.type\" field for the credential"}
+            require(!(resource.spec.template.data?.get(TYPE) as String?).isNullOrEmpty()) {"missing or empty \".metadata.type\" field for the credential"}
             require(!(resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT) as String?).isNullOrEmpty()) {"missing or empty \".metadata.account\" field for the credential"}
         } catch (e: Exception) {
             throw MisconfiguredObjectException(e.message!!)
@@ -37,6 +37,7 @@ class CredentialsResourceHandler(
 
         val cred: GitRepoAccountDetails
         val clouddriverAccountName = resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT) as String
+        val credType = resource.spec.template.data?.get(TYPE) as String
         try {
             cred = cloudDriverK8sService.getCredentialsDetails(
                 resource.serviceAccount,
@@ -83,7 +84,7 @@ class CredentialsResourceHandler(
             SECRET,
             mapOf(
                 "namespace" to resource.spec.namespace,
-                "name" to "${resource.spec.template.metadata["type"]}-${clouddriverAccountName}",
+                "name" to "${credType}-${clouddriverAccountName}",
                 "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
             ),
             null,
@@ -109,7 +110,7 @@ class CredentialsResourceHandler(
 
     override suspend fun actuationInProgress(resource: Resource<CredentialsResourceSpec>): Boolean =
         resource.spec.template.data?.get(CLOUDDRIVER_ACCOUNT)?.let { accountName ->
-            resource.spec.template.metadata["type"]?.let { type ->
+            resource.spec.template.data?.get(TYPE)?.let { type ->
                 log.debug(resource.toString())
                 val ids =
                     orcaService.getCorrelatedExecutions("${type}-${accountName}")
