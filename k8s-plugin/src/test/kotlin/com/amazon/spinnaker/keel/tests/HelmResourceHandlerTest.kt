@@ -133,7 +133,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = mutableMapOf<String, Any>() as K8sSpec
+                spec = mutableMapOf<String, Any>() as K8sBlob
             ),
             metrics = emptyList(),
             moniker = null,

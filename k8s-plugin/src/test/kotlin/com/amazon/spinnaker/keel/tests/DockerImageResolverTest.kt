@@ -17,7 +17,7 @@ import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverService
 import com.netflix.spinnaker.keel.clouddriver.model.DockerImage
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sBlob
 import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
 import io.mockk.coEvery
@@ -66,7 +66,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                                 "containers" to containers
                             )
                         )
-                    ) as K8sSpec
+                    ) as K8sBlob
             ),
         )
     )
@@ -93,7 +93,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                 ),
                 spec = mutableMapOf<String, Any>(
                     "template" to emptyMap<String, Any>()
-                ) as K8sSpec
+                ) as K8sBlob
             )
         )
     )

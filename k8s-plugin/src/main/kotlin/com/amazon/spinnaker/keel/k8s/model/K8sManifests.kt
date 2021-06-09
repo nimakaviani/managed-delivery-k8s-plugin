@@ -2,21 +2,20 @@ package com.amazon.spinnaker.keel.k8s.model
 
 import com.amazon.spinnaker.keel.k8s.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.netflix.spinnaker.keel.api.ExcludedFromDiff
 import com.fasterxml.jackson.core.type.TypeReference
 import java.lang.RuntimeException
 
-typealias K8sSpec = MutableMap<String, Any?>
+typealias K8sBlob = MutableMap<String, Any?>
 
-data class K8sData(
+data class FluxCredential(
     val account: String? = null,
     val username: String? = null,
     val password: String? = null,
     val identity: String? = null,
     val known_hosts: String? = null
 ) {
-    fun toMap(): Map<String, String?> {
-        return jacksonObjectMapper().convertValue(this, object: TypeReference<Map<String, String?>>() {})
+    fun toK8sBlob(): K8sBlob {
+        return jacksonObjectMapper().convertValue(this, object: TypeReference<K8sBlob>() {})
     }
 }
 
@@ -44,8 +43,8 @@ open class K8sManifest(
     open var apiVersion: String?,
     open var kind: String?,
     open var metadata: Map<String, Any?>,
-    open var spec: K8sSpec?,
-    open var data: Map<String, Any?>? = null,
+    open var spec: K8sBlob?,
+    open var data: K8sBlob? = null,
     open var status: Status? = null,
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
@@ -86,8 +85,8 @@ data class K8sObjectManifest(
     override var apiVersion: String?,
     override var kind: String?,
     override var metadata: Map<String, Any?>,
-    override var spec: K8sSpec?,
-    override var data: Map<String, Any?>? = null,
+    override var spec: K8sBlob?,
+    override var data: K8sBlob? = null,
     override var status: Status? = null,
 ) : K8sManifest(apiVersion, kind, metadata, spec, data, status) {
     override fun name(): String = metadata[NAME] as String
@@ -97,9 +96,9 @@ data class K8sCredentialManifest(
     override var apiVersion: String?,
     override var kind: String?,
     override var metadata: Map<String, Any?>,
-    override var spec: K8sSpec?,
-    override var data: Map<String, Any?>? = null,
+    override var spec: K8sBlob?,
+    override var data: K8sBlob? = null,
     override var status: Status? = null,
 ): K8sManifest(apiVersion, kind, metadata, spec, data, status) {
-    override fun name(): String = "${metadata[TYPE]}-${metadata[CLOUDDRIVER_ACCOUNT]}"
+    override fun name(): String = "${metadata[TYPE]}-${data?.get(CLOUDDRIVER_ACCOUNT)}"
 }

@@ -4,7 +4,7 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
 import com.amazon.spinnaker.keel.k8s.model.KustomizeResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sBlob
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.resolver.KustomizeResourceHandler
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -133,7 +133,7 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
                         K8S_LAST_APPLIED_CONFIG to mapper.writeValueAsString(lastApplied.template)
                     )
                 ),
-                spec = mutableMapOf<String, Any>() as K8sSpec
+                spec = mutableMapOf<String, Any>() as K8sBlob
             ),
             metrics = emptyList(),
             moniker = null,

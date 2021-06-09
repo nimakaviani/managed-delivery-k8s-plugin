@@ -10,7 +10,7 @@ import com.amazon.spinnaker.keel.k8s.model.CredentialsResourceSpec
 import com.amazon.spinnaker.keel.k8s.model.GitRepoAccountDetails
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sCredentialManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sSpec
+import com.amazon.spinnaker.keel.k8s.model.K8sBlob
 import com.amazon.spinnaker.keel.k8s.resolver.CredentialsResourceHandler
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -71,6 +71,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
         |  metadata:
         |    namespace: test-ns
         |    type: git
+        |  data:
         |    account: test-git-repo
     """.trimMargin()
     private val spec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
@@ -112,8 +113,32 @@ class CredentialsHandlerTest : JUnit5Minutests {
         context("with missing resource type") {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
+                val badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.metadata = mapOf("namespace" to "default")
+                r = resource(
+                    kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
+                    spec = badSpec
+                )
+            }
+
+            test ("should throw an exception") {
+                expectCatching { toResolvedType(r!!) }.failed().isA<MisconfiguredObjectException>()
+            }
+
+            test ("should indicate nothing is being actuated") {
+                runBlocking {
+                    expectThat(
+                        actuationInProgress(r!!)
+                    ).isFalse()
+                }
+            }
+        }
+
+        context("with missing clouddriver account") {
+            var r: Resource<CredentialsResourceSpec>? = null
+            before {
                 var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.metadata = mapOf("namespace" to "default", "account" to "account1")
+                badSpec.template.data = null
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec
@@ -125,11 +150,11 @@ class CredentialsHandlerTest : JUnit5Minutests {
             }
         }
 
-        context("with missing clouddriver account") {
+        context("with empty clouddriver account") {
             var r: Resource<CredentialsResourceSpec>? = null
             before {
-                var badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
-                badSpec.template.metadata = mapOf("namespace" to "default", "type" to "git")
+                val badSpec = yamlMapper.readValue(yaml, CredentialsResourceSpec::class.java)
+                badSpec.template.data?.set("account", "")
                 r = resource(
                     kind = CREDENTIALS_RESOURCE_SPEC_V1.kind,
                     spec = badSpec
@@ -281,7 +306,7 @@ class CredentialsHandlerTest : JUnit5Minutests {
                                 K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(lastApplied)
                         )
                     ),
-                    spec = mutableMapOf<String, Any>() as K8sSpec
+                    spec = mutableMapOf<String, Any>() as K8sBlob
                 )
                 clearMocks(cloudDriverK8sService)
                 coEvery {

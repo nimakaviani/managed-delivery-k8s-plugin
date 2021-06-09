@@ -170,7 +170,6 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
             "artifact.spinnaker.io/version",
             "moniker.spinnaker.io/application",
             "moniker.spinnaker.io/cluster",
-//            "strategy.spinnaker.io/versioned",
             "app.kubernetes.io/managed-by",
             "app.kubernetes.io/name"
         ).forEach {
