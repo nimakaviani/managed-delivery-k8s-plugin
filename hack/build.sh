@@ -35,7 +35,15 @@ PLUGIN_PATH="./build/distributions"
 PLUGIN_FILE="$PLUGIN_PATH/$PLUGIN_FILE_NAME"
 TEMP_FILE="temp.json"
 
-version=$(cat gradle.properties | grep version | cut -d= -f2)
+increment_version() {
+  local delimiter=.
+  local array=($(echo "$1" | tr $delimiter '\n'))
+  array[$2]=$((array[$2]+1))
+  echo $(local IFS=$delimiter ; echo "${array[*]}")
+}
+
+tag=$(git describe --tags --abbrev=0)
+version=$(increment_version "${tag}" 2)
 
 [ -d "$PLUGIN_PATH" ] || (echo "cannot find $PLUGIN_PATH. script needs to run in root plugin dir" && exit 1)
 
@@ -58,4 +66,3 @@ aws s3 cp $PLUGIN_PATH/managed-delivery-k8s-plugin* s3://$BUCKET/managed-deliver
 # nuke temp files
 rm -rf $TEMP_FILE
 rm -rf $TEMP_PLUGIN_FILE
-
