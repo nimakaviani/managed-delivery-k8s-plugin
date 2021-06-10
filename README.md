@@ -2,7 +2,11 @@
 
 ## Requirements
 
-The managed delivery Kubernetes plugin now integrates with Keel v0.191.1.
+### Version Compatibility
+| Plugin      |   Keel   |
+|:----------- | :--------|
+|  <= 0.0.6  |  0.191.1 |
+
 
 It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
 version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),
