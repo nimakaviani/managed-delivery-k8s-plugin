@@ -339,7 +339,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
                 context("when it is one of the expected annotations") {
                     before{
-                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["annotations"] = mutableMapOf("artifact.spinnaker.io/location" to "something")
+                        (resourceSpec.template.metadata)["annotations"] = mutableMapOf("artifact.spinnaker.io/location" to "something")
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -355,7 +355,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 }
                 context("when it is not one of the expected annotations") {
                     before{
-                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["annotations"] = mutableMapOf("random" to "something")
+                        (resourceSpec.template.metadata)["annotations"] = mutableMapOf("random" to "something")
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -375,7 +375,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
                 context("when it is one of the expected labels") {
                     before{
-                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["labels"] = mutableMapOf("app.kubernetes.io/name" to "something")
+                        (resourceSpec.template.metadata)["labels"] = mutableMapOf("app.kubernetes.io/name" to "something")
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -391,7 +391,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 }
                 context("when it is not one of the expected labels") {
                     before{
-                        (resourceSpec.template.metadata as MutableMap<String, Any?>)["labels"] = mutableMapOf("random" to "something")
+                        (resourceSpec.template.metadata)["labels"] = mutableMapOf("random" to "something")
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )

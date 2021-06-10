@@ -15,7 +15,7 @@ import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.plugins.SupportedKind
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.events.ResourceHealthEvent
-import com.netflix.spinnaker.keel.model.Job
+import com.netflix.spinnaker.keel.model.OrcaJob
 import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
@@ -105,8 +105,8 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
         )
     }
 
-    fun R.job(app: String, account: String): Job =
-        Job(
+    fun R.job(app: String, account: String): OrcaJob =
+        OrcaJob(
             "deployManifest",
             mapOf(
                 "moniker" to mapOf(
