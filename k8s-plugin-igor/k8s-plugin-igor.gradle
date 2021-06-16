@@ -1,0 +1,58 @@
+import org.gradle.api.tasks.testing.Test
+
+apply plugin: "java-library"
+apply plugin: "io.spinnaker.plugin.service-extension"
+apply plugin: "maven-publish"
+apply plugin: "kotlin"
+apply plugin: "kotlin-kapt"
+
+sourceCompatibility = 11
+targetCompatibility = 11
+
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+    if (property("korkVersion").toString().endsWith("-SNAPSHOT")) {
+        mavenLocal()
+    }
+}
+
+spinnakerPlugin {
+    serviceName = "igor"
+    pluginClass = "com.amazon.spinnaker.keel.k8s.ManagedDeliveryK8sPlugin"
+    requires="igor>=0.0.0"
+    description = 'Plugin to enable K8s in Managed Delivery.'
+    version = rootProject.version
+}
+
+dependencies {
+    compileOnly (group: 'io.spinnaker.igor', name: 'igor-core', version: "${igorVersion}")
+    compileOnly (group: 'io.spinnaker.igor', name: 'igor-web', version: "${igorVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-core', version: "${korkVersion}")
+    compileOnly (group: 'com.squareup.retrofit2', name: 'retrofit', version: "2.8.1")
+    compileOnly (group: 'com.squareup.retrofit2', name: 'converter-jackson', version: "2.8.1")
+    kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
+
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+compileKotlin {
+    kotlinOptions {
+        languageVersion = "1.4"
+        jvmTarget = targetCompatibility
+        freeCompilerArgs = ['-Xjvm-default=enable']
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        languageVersion = "1.4"
+        jvmTarget = targetCompatibility
+        freeCompilerArgs = ['-Xjvm-default=enable']
+    }
+}
