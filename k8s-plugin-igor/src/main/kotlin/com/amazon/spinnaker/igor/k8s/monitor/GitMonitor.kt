@@ -1,5 +1,7 @@
 package com.amazon.spinnaker.igor.k8s.monitor
 
+import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
+import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
 import com.amazon.spinnaker.igor.k8s.model.GitDelta
 import com.amazon.spinnaker.igor.k8s.model.GitHubAccount
 import com.amazon.spinnaker.igor.k8s.model.GitPollingDelta
@@ -33,8 +35,8 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
                  discoveryStatusListener: DiscoveryStatusListener?,
                  lockService: Optional<LockService>?,
                  scheduler: TaskScheduler?,
-                 val gitHubService: GitHubService,
-                 val gitHubAccounts: MutableList<GitHubAccount>,
+                 val GitHubRestClient: GitHubRestClient,
+                 val gitHubAccounts: GitHubAccounts,
                  val echoService: Optional<EchoService>,
                  val keelService: Optional<KeelService>,
                  private val stashMaster: Optional<StashMaster>,

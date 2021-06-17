@@ -1,8 +1,10 @@
 package com.amazon.spinnaker.igor.k8s.config
 
+import com.amazon.spinnaker.igor.k8s.model.GitHubAccount
 import com.amazon.spinnaker.igor.k8s.service.GitHubService
 import com.netflix.spinnaker.igor.config.GitHubConfig
 import com.netflix.spinnaker.igor.config.GitHubProperties
+import com.netflix.spinnaker.kork.plugins.api.spring.ExposeToApp
 import okhttp3.OkHttpClient
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -12,17 +14,17 @@ import retrofit2.converter.jackson.JacksonConverterFactory
 
 @Configuration
 @ConditionalOnProperty("github.base-url")
-open class GitHubConfiguration {
+open class GitHubRestClient(gitHubProperties: GitHubProperties) {
+    lateinit var client: GitHubService
 
-    @Bean
-    open fun gitHubService(gitHubProperties: GitHubProperties): GitHubService {
+    init {
         val baseUrlField = GitHubProperties::class.java.getDeclaredField("baseUrl")
         val accessTokenField = GitHubProperties::class.java.getDeclaredField("accessToken")
         baseUrlField.isAccessible = true
         accessTokenField.isAccessible = true
         val baseUrl = baseUrlField.get(gitHubProperties) as String
         val accessToken = accessTokenField.get(gitHubProperties) as String
-        return Retrofit.Builder()
+        client =  Retrofit.Builder()
             .addConverterFactory(JacksonConverterFactory.create())
             .baseUrl(baseUrl)
             .client(OkHttpClient.Builder()
@@ -33,5 +35,19 @@ open class GitHubConfiguration {
                 .build())
             .build()
             .create(GitHubService::class.java)
+    }
+}
+
+open class GitHubAccounts(pluginConfigurationProperties: PluginConfigurationProperties) {
+    lateinit var accounts: MutableList<GitHubAccount>
+
+    init {
+        pluginConfigurationProperties.accounts.forEach{
+            val gitHubAccounts = mutableListOf<GitHubAccount>()
+            if (it.type.toLowerCase() == "github") {
+                gitHubAccounts.add(GitHubAccount(name = it.name, project = it.project))
+            }
+            accounts = gitHubAccounts
+        }
     }
 }

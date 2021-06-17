@@ -1,9 +1,14 @@
 package com.amazon.spinnaker.igor.k8s
 
-import com.netflix.spinnaker.kork.plugins.api.spring.SpringLoaderPlugin
+import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
+import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
+import com.amazon.spinnaker.igor.k8s.config.PluginConfigurationProperties
+import com.amazon.spinnaker.igor.k8s.monitor.GitMonitor
+import com.netflix.spinnaker.kork.plugins.api.spring.PrivilegedSpringPlugin
 import org.pf4j.PluginWrapper
+import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
-class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper): SpringLoaderPlugin(wrapper) {
+class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper): PrivilegedSpringPlugin(wrapper) {
     override fun start() {
         log.info("starting ManagedDelivery k8s plugin.")
     }
@@ -12,9 +17,14 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper): SpringLoaderPlugin(wrapp
         log.info("stopping ManagedDelivery k8s plugin.")
     }
 
-    override fun getPackagesToScan(): List<String> {
-        return listOf(
-            "com.amazon.spinnaker.igor.k8s"
-        )
+    override fun registerBeanDefinitions(registry: BeanDefinitionRegistry?) {
+        listOf(
+            beanDefinitionFor(GitHubRestClient::class.java),
+            beanDefinitionFor(GitHubAccounts::class.java),
+            beanDefinitionFor(PluginConfigurationProperties::class.java),
+            beanDefinitionFor(GitMonitor::class.java)
+        ).forEach {
+            registerBean(it, registry)
+        }
     }
 }
