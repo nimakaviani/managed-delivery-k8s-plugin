@@ -19,7 +19,7 @@ repositories {
 
 spinnakerPlugin {
     serviceName = "igor"
-    pluginClass = "com.amazon.spinnaker.keel.k8s.ManagedDeliveryK8sPlugin"
+    pluginClass = "com.amazon.spinnaker.igor.k8s.ManagedDeliveryK8sPlugin"
     requires="igor>=0.0.0"
     description = 'Plugin to enable K8s in Managed Delivery.'
     version = rootProject.version
@@ -33,6 +33,7 @@ dependencies {
     compileOnly (group: 'io.spinnaker.kork', name: 'kork-core', version: "${korkVersion}")
     compileOnly (group: 'com.squareup.retrofit2', name: 'retrofit', version: "2.8.1")
     compileOnly (group: 'com.squareup.retrofit2', name: 'converter-jackson', version: "2.8.1")
+    compileOnly (group: 'org.codehaus.groovy', name: 'groovy-all', version: "2.5.11")
     kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
 
 }

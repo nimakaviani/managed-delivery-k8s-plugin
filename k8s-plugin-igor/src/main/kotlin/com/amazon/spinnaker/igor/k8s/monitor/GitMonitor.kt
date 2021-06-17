@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.igor.k8s.monitor
 
 import com.amazon.spinnaker.igor.k8s.model.GitDelta
+import com.amazon.spinnaker.igor.k8s.model.GitHubAccount
 import com.amazon.spinnaker.igor.k8s.model.GitPollingDelta
 import com.amazon.spinnaker.igor.k8s.service.GitHubService
 import com.netflix.spectator.api.Registry
@@ -33,6 +34,7 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
                  lockService: Optional<LockService>?,
                  scheduler: TaskScheduler?,
                  val gitHubService: GitHubService,
+                 val gitHubAccounts: MutableList<GitHubAccount>,
                  val echoService: Optional<EchoService>,
                  val keelService: Optional<KeelService>,
                  private val stashMaster: Optional<StashMaster>,
@@ -45,15 +47,18 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
     override fun getName(): String = "gitTagMonitor"
 
     override fun poll(sendEvents: Boolean) {
-
+        log.info("polling GitHub accounts")
+//        gitHubService.getTags()
         TODO("Not yet implemented")
     }
 
     override fun generateDelta(ctx: PollContext?): GitPollingDelta {
+        log.info("polling GitHub accounts")
         TODO("Not yet implemented")
     }
 
     override fun commitDelta(delta: GitPollingDelta?, sendEvents: Boolean) {
+        log.info("polling GitHub accounts")
         TODO("Not yet implemented")
     }
 
@@ -71,5 +76,4 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
             throw IllegalArgumentException("SCM type, ${type}, is not configured")
         }
     }
-
 }

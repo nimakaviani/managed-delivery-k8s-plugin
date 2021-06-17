@@ -12,12 +12,16 @@ import retrofit2.converter.jackson.JacksonConverterFactory
 
 @Configuration
 @ConditionalOnProperty("github.base-url")
-class GitHubConfiguration {
+open class GitHubConfiguration {
 
     @Bean
-    fun gitHubService(gitHubProperties: GitHubProperties): GitHubService {
-        val baseUrl = GitHubProperties::class.java.getDeclaredField("baseUrl").get(gitHubProperties) as String
-        val accessToken = GitHubProperties::class.java.getDeclaredField("accessToken").get(gitHubProperties) as String
+    open fun gitHubService(gitHubProperties: GitHubProperties): GitHubService {
+        val baseUrlField = GitHubProperties::class.java.getDeclaredField("baseUrl")
+        val accessTokenField = GitHubProperties::class.java.getDeclaredField("accessToken")
+        baseUrlField.isAccessible = true
+        accessTokenField.isAccessible = true
+        val baseUrl = baseUrlField.get(gitHubProperties) as String
+        val accessToken = accessTokenField.get(gitHubProperties) as String
         return Retrofit.Builder()
             .addConverterFactory(JacksonConverterFactory.create())
             .baseUrl(baseUrl)
