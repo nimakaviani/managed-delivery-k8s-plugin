@@ -1,4 +1,3 @@
-import org.gradle.api.tasks.testing.Test
 
 apply plugin: "java-library"
 apply plugin: "io.spinnaker.plugin.service-extension"
@@ -26,11 +25,14 @@ spinnakerPlugin {
 }
 
 dependencies {
+//    compileOnly ("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${kotlinVersion}")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
     compileOnly (group: 'io.spinnaker.igor', name: 'igor-core', version: "${igorVersion}")
     compileOnly (group: 'io.spinnaker.igor', name: 'igor-web', version: "${igorVersion}")
     compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
     compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
     compileOnly (group: 'io.spinnaker.kork', name: 'kork-core', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-jedis', version: "${korkVersion}")
     compileOnly (group: 'com.squareup.retrofit2', name: 'retrofit', version: "2.8.1")
     compileOnly (group: 'com.squareup.retrofit2', name: 'converter-jackson', version: "2.8.1")
     compileOnly (group: 'org.codehaus.groovy', name: 'groovy-all', version: "2.5.11")

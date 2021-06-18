@@ -2,12 +2,9 @@ package com.amazon.spinnaker.igor.k8s.config
 
 import com.amazon.spinnaker.igor.k8s.model.GitHubAccount
 import com.amazon.spinnaker.igor.k8s.service.GitHubService
-import com.netflix.spinnaker.igor.config.GitHubConfig
 import com.netflix.spinnaker.igor.config.GitHubProperties
-import com.netflix.spinnaker.kork.plugins.api.spring.ExposeToApp
 import okhttp3.OkHttpClient
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
@@ -15,7 +12,7 @@ import retrofit2.converter.jackson.JacksonConverterFactory
 @Configuration
 @ConditionalOnProperty("github.base-url")
 open class GitHubRestClient(gitHubProperties: GitHubProperties) {
-    lateinit var client: GitHubService
+    var client: GitHubService
 
     init {
         val baseUrlField = GitHubProperties::class.java.getDeclaredField("baseUrl")

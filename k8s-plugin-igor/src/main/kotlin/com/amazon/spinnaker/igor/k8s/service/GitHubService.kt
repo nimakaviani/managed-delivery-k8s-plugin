@@ -9,5 +9,5 @@ interface GitHubService {
     suspend fun getTags(
         @Path("projectKey") projectKey: String,
         @Path("repositorySlug") repositorySlug: String
-    ): GitHubTagResponse
+    ): List<GitHubTagResponse>
 }
