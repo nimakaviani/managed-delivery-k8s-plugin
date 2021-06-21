@@ -1,5 +1,7 @@
 package com.amazon.spinnaker.igor.k8s.model
 
+import com.netflix.spinnaker.igor.polling.DeltaItem
+
 data class GitHubVersion (
     val name: String,
     val project: String,
@@ -7,7 +9,7 @@ data class GitHubVersion (
     val version: String,
     val sha: String,
     val type: String = "github",
-) {
+): DeltaItem {
     private val id = "git"
 
     override fun toString(): String {

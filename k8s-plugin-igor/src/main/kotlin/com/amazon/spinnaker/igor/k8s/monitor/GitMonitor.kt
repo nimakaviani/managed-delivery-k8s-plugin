@@ -3,7 +3,6 @@ package com.amazon.spinnaker.igor.k8s.monitor
 import com.amazon.spinnaker.igor.k8s.cache.GitCache
 import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
 import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
-import com.amazon.spinnaker.igor.k8s.model.GitDelta
 import com.amazon.spinnaker.igor.k8s.model.GitHubVersion
 import com.amazon.spinnaker.igor.k8s.model.GitPollingDelta
 import com.netflix.spectator.api.Registry
@@ -43,7 +42,7 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
                  private val gitHubMaster: Optional<GitHubMaster>,
                  private val gitLabMaster: Optional<GitLabMaster>,
                  private val bitBucketMaster: Optional<BitBucketMaster>
-) : CommonPollingMonitor<GitDelta, GitPollingDelta>(
+) : CommonPollingMonitor<GitHubVersion, GitPollingDelta>(
     igorProperties, registry, dynamicConfigService, discoveryStatusListener, lockService, scheduler
 ) {
     override fun getName(): String = "gitTagMonitor"
@@ -59,24 +58,37 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
     }
 
     override fun generateDelta(ctx: PollContext?): GitPollingDelta {
-        log.debug("getting cached images. context: $ctx")
+        log.debug("getting cached images. context: ${ctx?.context}")
+        val deltas = mutableListOf<GitHubVersion>()
         val name = ctx?.context?.get("name") as String
         val project = ctx.context?.get("project") as String
 
         val cachedVersion = gitCache.getVersions(ctx.context?.get("type") as String, project, name)
+        log.debug("versions in cache $cachedVersion")
         val versions = getGitHubTags(name, project)
+        log.debug("versions from remote: $versions")
         versions.forEach {
             if (!cachedVersion.contains(it.toString())) {
-                log.debug("${it.toString()} is not cached. will be cached")
-
+                log.debug("$it is not cached. will be cached")
+                deltas.add(
+                    it.copy()
+                )
             }
         }
-        TODO("Not yet implemented")
+        log.debug("generated ${deltas.size} deltas")
+        log.trace("$deltas")
+        return GitPollingDelta(
+            deltas,
+            cachedVersion.toSet()
+        )
     }
 
     override fun commitDelta(delta: GitPollingDelta?, sendEvents: Boolean) {
-        log.info("polling GitHub accounts")
-        TODO("Not yet implemented")
+        log.debug("caching ${delta?.deltas?.size} git versions")
+        delta.let {
+            gitCache.cacheVersion(it!!)
+        }
+        log.debug("cached git versions")
     }
 
     private fun getScmMaster(type: String): AbstractScmMaster {
