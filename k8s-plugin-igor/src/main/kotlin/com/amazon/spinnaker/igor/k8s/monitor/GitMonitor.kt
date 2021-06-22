@@ -3,7 +3,7 @@ package com.amazon.spinnaker.igor.k8s.monitor
 import com.amazon.spinnaker.igor.k8s.cache.GitCache
 import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
 import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
-import com.amazon.spinnaker.igor.k8s.model.GitHubVersion
+import com.amazon.spinnaker.igor.k8s.model.GitVersion
 import com.amazon.spinnaker.igor.k8s.model.GitPollingDelta
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.igor.IgorConfigurationProperties
@@ -12,11 +12,6 @@ import com.netflix.spinnaker.igor.keel.KeelService
 import com.netflix.spinnaker.igor.polling.CommonPollingMonitor
 import com.netflix.spinnaker.igor.polling.LockService
 import com.netflix.spinnaker.igor.polling.PollContext
-import com.netflix.spinnaker.igor.scm.AbstractScmMaster
-import com.netflix.spinnaker.igor.scm.bitbucket.client.BitBucketMaster
-import com.netflix.spinnaker.igor.scm.github.client.GitHubMaster
-import com.netflix.spinnaker.igor.scm.gitlab.client.GitLabMaster
-import com.netflix.spinnaker.igor.scm.stash.client.StashMaster
 import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
 import kotlinx.coroutines.runBlocking
@@ -37,12 +32,8 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
                  val gitHubRestClient: GitHubRestClient,
                  val gitHubAccounts: GitHubAccounts,
                  val echoService: Optional<EchoService>,
-                 val keelService: Optional<KeelService>,
-                 private val stashMaster: Optional<StashMaster>,
-                 private val gitHubMaster: Optional<GitHubMaster>,
-                 private val gitLabMaster: Optional<GitLabMaster>,
-                 private val bitBucketMaster: Optional<BitBucketMaster>
-) : CommonPollingMonitor<GitHubVersion, GitPollingDelta>(
+                 val keelService: Optional<KeelService>
+) : CommonPollingMonitor<GitVersion, GitPollingDelta>(
     igorProperties, registry, dynamicConfigService, discoveryStatusListener, lockService, scheduler
 ) {
     override fun getName(): String = "gitTagMonitor"
@@ -59,7 +50,7 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
 
     override fun generateDelta(ctx: PollContext?): GitPollingDelta {
         log.debug("getting cached images. context: ${ctx?.context}")
-        val deltas = mutableListOf<GitHubVersion>()
+        val deltas = mutableListOf<GitVersion>()
         val name = ctx?.context?.get("name") as String
         val project = ctx.context?.get("project") as String
 
@@ -84,35 +75,37 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
     }
 
     override fun commitDelta(delta: GitPollingDelta?, sendEvents: Boolean) {
-        log.debug("caching ${delta?.deltas?.size} git versions")
-        delta.let {
-            gitCache.cacheVersion(it!!)
-        }
-        log.debug("cached git versions")
-    }
-
-    private fun getScmMaster(type: String): AbstractScmMaster {
-        val scm: Optional<out AbstractScmMaster> = when (type) {
-            "stash" -> stashMaster
-            "github" -> gitHubMaster
-            "gitlab" -> gitLabMaster
-            "bitbucket" -> bitBucketMaster
-            else -> throw IllegalArgumentException("SCM type, ${type}, is not supported")
-        }
-        if (scm.isPresent) {
-            return scm.get()
-        } else {
-            throw IllegalArgumentException("SCM type, ${type}, is not configured")
+        if (delta?.deltas?.isNotEmpty()!!) {
+            log.debug("caching ${delta.deltas.size} git versions")
+            delta.let {
+                gitCache.cacheVersion(it)
+            }
+            log.debug("cached git versions")
         }
     }
 
-    private fun getGitHubTags(name: String, project: String): List<GitHubVersion> {
-        val results = mutableListOf<GitHubVersion>()
+//    private fun getScmMaster(type: String): AbstractScmMaster {
+//        val scm: Optional<out AbstractScmMaster> = when (type) {
+//            "stash" -> stashMaster
+//            "github" -> gitHubMaster
+//            "gitlab" -> gitLabMaster
+//            "bitbucket" -> bitBucketMaster
+//            else -> throw IllegalArgumentException("SCM type, ${type}, is not supported")
+//        }
+//        if (scm.isPresent) {
+//            return scm.get()
+//        } else {
+//            throw IllegalArgumentException("SCM type, ${type}, is not configured")
+//        }
+//    }
+
+    private fun getGitHubTags(name: String, project: String): List<GitVersion> {
+        val results = mutableListOf<GitVersion>()
         runBlocking {
             val tags = gitHubRestClient.client.getTags(name, project)
             tags.forEach{
                 results.add(
-                    GitHubVersion(
+                    GitVersion(
                         name,
                         project,
                         igorProperties.spinnaker.jedis.prefix,

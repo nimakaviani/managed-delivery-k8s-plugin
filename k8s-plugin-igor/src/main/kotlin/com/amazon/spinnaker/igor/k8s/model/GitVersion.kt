@@ -2,7 +2,7 @@ package com.amazon.spinnaker.igor.k8s.model
 
 import com.netflix.spinnaker.igor.polling.DeltaItem
 
-data class GitHubVersion (
+data class GitVersion (
     val name: String,
     val project: String,
     val prefix: String,

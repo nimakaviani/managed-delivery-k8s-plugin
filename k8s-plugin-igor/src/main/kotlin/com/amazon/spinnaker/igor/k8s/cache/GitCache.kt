@@ -25,17 +25,14 @@ class GitCache(
         return result.toSet()
     }
 
-    fun cacheVersion(versions: GitPollingDelta) {
+    fun cacheVersion(gitPollingDelta: GitPollingDelta) {
         redisClientDelegate.withPipeline {
-            versions.deltas.forEach { delta ->
+            gitPollingDelta.deltas.forEach { delta ->
                 log.debug("caching $delta")
                 it.hset(delta.toString(), "sha", delta.sha)
             }
             redisClientDelegate.syncPipeline(it)
         }
-//        redisClientDelegate.withCommandsClient {
-//            it.hset(key, "sha", sha)
-//        }
     }
 
     private fun makeIndexPattern(type: String, project: String, name: String): String {
