@@ -22,7 +22,7 @@ open class PluginConfiguration(var pluginConfigurationProperties: PluginConfigur
     @Bean
     open fun gitHubAccounts(): MutableList<GitHubAccount> {
         val accounts = mutableListOf<GitHubAccount>()
-        pluginConfigurationProperties.accounts.forEach{
+        pluginConfigurationProperties.accounts.forEach {
             if (it.type.toLowerCase() == "github") {
                 accounts.add(GitHubAccount(name = it.name, project = it.project))
             }

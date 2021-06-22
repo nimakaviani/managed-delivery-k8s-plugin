@@ -9,7 +9,7 @@ import com.netflix.spinnaker.kork.plugins.api.spring.PrivilegedSpringPlugin
 import org.pf4j.PluginWrapper
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
 
-class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper): PrivilegedSpringPlugin(wrapper) {
+class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(wrapper) {
     override fun start() {
         log.info("starting ManagedDelivery k8s plugin.")
     }

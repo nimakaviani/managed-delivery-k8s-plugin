@@ -3,8 +3,8 @@ package com.amazon.spinnaker.igor.k8s.monitor
 import com.amazon.spinnaker.igor.k8s.cache.GitCache
 import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
 import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
-import com.amazon.spinnaker.igor.k8s.model.GitVersion
 import com.amazon.spinnaker.igor.k8s.model.GitPollingDelta
+import com.amazon.spinnaker.igor.k8s.model.GitVersion
 import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.igor.IgorConfigurationProperties
 import com.netflix.spinnaker.igor.history.EchoService
@@ -22,17 +22,18 @@ import java.util.*
 
 @Service
 @ConditionalOnProperty("github.base-url")
-class GitMonitor(igorProperties: IgorConfigurationProperties?,
-                 registry: Registry?,
-                 dynamicConfigService: DynamicConfigService?,
-                 discoveryStatusListener: DiscoveryStatusListener?,
-                 lockService: Optional<LockService>?,
-                 scheduler: TaskScheduler?,
-                 val gitCache: GitCache,
-                 val gitHubRestClient: GitHubRestClient,
-                 val gitHubAccounts: GitHubAccounts,
-                 val echoService: Optional<EchoService>,
-                 val keelService: Optional<KeelService>
+class GitMonitor(
+    igorProperties: IgorConfigurationProperties?,
+    registry: Registry?,
+    dynamicConfigService: DynamicConfigService?,
+    discoveryStatusListener: DiscoveryStatusListener?,
+    lockService: Optional<LockService>?,
+    scheduler: TaskScheduler?,
+    val gitCache: GitCache,
+    val gitHubRestClient: GitHubRestClient,
+    val gitHubAccounts: GitHubAccounts,
+    val echoService: Optional<EchoService>,
+    val keelService: Optional<KeelService>
 ) : CommonPollingMonitor<GitVersion, GitPollingDelta>(
     igorProperties, registry, dynamicConfigService, discoveryStatusListener, lockService, scheduler
 ) {
@@ -41,9 +42,12 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
     override fun poll(sendEvents: Boolean) {
         log.debug("polling git accounts")
         gitHubAccounts.accounts.forEach {
-            pollSingle(PollContext("${it.project}/${it.name}",
-                mapOf("name" to it.name, "project" to it.project, "type" to it.type),
-                !sendEvents)
+            pollSingle(
+                PollContext(
+                    "${it.project}/${it.name}",
+                    mapOf("name" to it.name, "project" to it.project, "type" to it.type),
+                    !sendEvents
+                )
             )
         }
     }
@@ -103,7 +107,7 @@ class GitMonitor(igorProperties: IgorConfigurationProperties?,
         val results = mutableListOf<GitVersion>()
         runBlocking {
             val tags = gitHubRestClient.client.getTags(name, project)
-            tags.forEach{
+            tags.forEach {
                 results.add(
                     GitVersion(
                         name,

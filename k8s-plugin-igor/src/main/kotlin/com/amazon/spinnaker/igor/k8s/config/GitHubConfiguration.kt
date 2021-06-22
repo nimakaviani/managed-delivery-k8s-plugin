@@ -23,7 +23,7 @@ open class GitHubRestClient(gitHubProperties: GitHubProperties) {
         accessTokenField.isAccessible = true
         val baseUrl = baseUrlField.get(gitHubProperties) as String
         val accessToken = accessTokenField.get(gitHubProperties) as String
-        client =  RestAdapter.Builder()
+        client = RestAdapter.Builder()
             .setEndpoint(Endpoints.newFixedEndpoint(baseUrl))
             .setRequestInterceptor {
                 it.addHeader("Authorization", "token $accessToken")
@@ -33,18 +33,6 @@ open class GitHubRestClient(gitHubProperties: GitHubProperties) {
             .setLog(Slf4jRetrofitLogger(GitHubService::class.java))
             .build()
             .create(GitHubService::class.java)
-
-
-//            .addConverterFactory(JacksonConverterFactory.create())
-//            .baseUrl(baseUrl)
-//            .client(OkHttpClient.Builder()
-//                .addInterceptor { chain ->
-//                    val request = chain.request().newBuilder().addHeader("Authorization", "token $accessToken").build()
-//                    chain.proceed(request)
-//                }
-//                .build())
-//            .build()
-//            .create(GitHubService::class.java)
     }
 }
 
@@ -52,7 +40,7 @@ open class GitHubAccounts(pluginConfigurationProperties: PluginConfigurationProp
     lateinit var accounts: MutableList<GitHubAccount>
 
     init {
-        pluginConfigurationProperties.accounts.forEach{
+        pluginConfigurationProperties.accounts.forEach {
             val gitHubAccounts = mutableListOf<GitHubAccount>()
             if (it.type.toLowerCase() == "github") {
                 gitHubAccounts.add(GitHubAccount(name = it.name, project = it.project))

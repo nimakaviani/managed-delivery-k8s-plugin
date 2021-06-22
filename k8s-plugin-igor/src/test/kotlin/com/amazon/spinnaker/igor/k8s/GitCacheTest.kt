@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import redis.clients.jedis.commands.RedisPipeline
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
+import java.util.function.Consumer
 
 class GitCacheTest {
     val redisClientDelegate = mockk<RedisClientDelegate>()
@@ -39,7 +40,7 @@ class GitCacheTest {
         val slot = slot<String>()
         every {
             redisClientDelegate.withKeyScan(capture(slot), 1000, any())
-        } returns Unit
+        } just Runs
 
         gitCache.getVersions("github", "project1", "repo1")
         verify(exactly = 1) {
@@ -50,14 +51,18 @@ class GitCacheTest {
 
     @Test
     fun `correct versions cached`() {
-        val slot = slot<RedisPipeline>()
-        every {
-            redisClientDelegate.withPipeline(any())
-        } returns Unit
+        val pipeline = mockk<RedisPipeline>(relaxed = true)
 
         every {
-            redisClientDelegate.syncPipeline(capture(slot))
-        } returns Unit
+            redisClientDelegate.withPipeline(any())
+        } answers {
+            val consumer = firstArg<(Consumer<RedisPipeline>)>()
+            consumer.accept(pipeline)
+        }
+
+        every {
+            redisClientDelegate.syncPipeline(pipeline)
+        } just Runs
 
         gitCache.cacheVersion(
             GitPollingDelta(
@@ -68,7 +73,7 @@ class GitCacheTest {
                 "igor",
                 "0.0.1",
                 "123",
-            ),
+                ),
                 GitVersion(
                     "repo1",
                     "project1",
@@ -84,7 +89,8 @@ class GitCacheTest {
         verify(exactly = 1) {
             redisClientDelegate.withPipeline(any())
             redisClientDelegate.syncPipeline(any())
+            pipeline.hset("igor:git:github:project1:repo1:0.0.1", "sha", "123")
+            pipeline.hset("igor:git:github:project1:repo1:0.0.2", "sha", "123")
         }
-        slot.captured.hgetAll("igor:git:github:projec1:repo1:0.0.1")
     }
 }
