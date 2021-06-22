@@ -12,17 +12,17 @@ import com.netflix.spinnaker.igor.keel.KeelService
 import com.netflix.spinnaker.igor.polling.CommonPollingMonitor
 import com.netflix.spinnaker.igor.polling.LockService
 import com.netflix.spinnaker.igor.polling.PollContext
+import com.netflix.spinnaker.kork.artifacts.model.Artifact
 import com.netflix.spinnaker.kork.discovery.DiscoveryStatusListener
 import com.netflix.spinnaker.kork.dynamicconfig.DynamicConfigService
+import com.netflix.spinnaker.security.AuthenticatedRequest
 import kotlinx.coroutines.runBlocking
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.stereotype.Service
 import java.util.*
 
-@Service
-@ConditionalOnProperty("github.base-url")
-class GitMonitor(
+abstract class GitMonitor(
     igorProperties: IgorConfigurationProperties?,
     registry: Registry?,
     dynamicConfigService: DynamicConfigService?,
@@ -30,95 +30,62 @@ class GitMonitor(
     lockService: Optional<LockService>?,
     scheduler: TaskScheduler?,
     val gitCache: GitCache,
-    val gitHubRestClient: GitHubRestClient,
-    val gitHubAccounts: GitHubAccounts,
     val echoService: Optional<EchoService>,
     val keelService: Optional<KeelService>
 ) : CommonPollingMonitor<GitVersion, GitPollingDelta>(
     igorProperties, registry, dynamicConfigService, discoveryStatusListener, lockService, scheduler
 ) {
-    override fun getName(): String = "gitTagMonitor"
+    abstract override fun getName(): String
 
-    override fun poll(sendEvents: Boolean) {
-        log.debug("polling git accounts")
-        gitHubAccounts.accounts.forEach {
-            pollSingle(
-                PollContext(
-                    "${it.project}/${it.name}",
-                    mapOf("name" to it.name, "project" to it.project, "type" to it.type),
-                    !sendEvents
-                )
-            )
-        }
-    }
+    abstract override fun poll(sendEvents: Boolean)
 
-    override fun generateDelta(ctx: PollContext?): GitPollingDelta {
-        log.debug("getting cached images. context: ${ctx?.context}")
-        val deltas = mutableListOf<GitVersion>()
-        val name = ctx?.context?.get("name") as String
-        val project = ctx.context?.get("project") as String
+    abstract override fun generateDelta(ctx: PollContext?): GitPollingDelta
 
-        val cachedVersion = gitCache.getVersions(ctx.context?.get("type") as String, project, name)
-        log.debug("versions in cache $cachedVersion")
-        val versions = getGitHubTags(name, project)
-        log.debug("versions from remote: $versions")
-        versions.forEach {
-            if (!cachedVersion.contains(it.toString())) {
-                log.debug("$it is not cached. will be cached")
-                deltas.add(
-                    it.copy()
-                )
-            }
-        }
-        log.debug("generated ${deltas.size} deltas")
-        log.trace("$deltas")
-        return GitPollingDelta(
-            deltas,
-            cachedVersion.toSet()
-        )
-    }
+    abstract fun generateMetaData(version: GitVersion): Map<String, Any>
 
     override fun commitDelta(delta: GitPollingDelta?, sendEvents: Boolean) {
         if (delta?.deltas?.isNotEmpty()!!) {
             log.debug("caching ${delta.deltas.size} git versions")
             delta.let {
                 gitCache.cacheVersion(it)
+                log.info("cached $it")
             }
             log.debug("cached git versions")
+            if (keelService.isPresent) {
+                delta.deltas.forEach{
+                    postEvent(delta.cachedIds, it)
+                }
+            }
         }
     }
 
-//    private fun getScmMaster(type: String): AbstractScmMaster {
-//        val scm: Optional<out AbstractScmMaster> = when (type) {
-//            "stash" -> stashMaster
-//            "github" -> gitHubMaster
-//            "gitlab" -> gitLabMaster
-//            "bitbucket" -> bitBucketMaster
-//            else -> throw IllegalArgumentException("SCM type, ${type}, is not supported")
-//        }
-//        if (scm.isPresent) {
-//            return scm.get()
-//        } else {
-//            throw IllegalArgumentException("SCM type, ${type}, is not configured")
-//        }
-//    }
-
-    private fun getGitHubTags(name: String, project: String): List<GitVersion> {
-        val results = mutableListOf<GitVersion>()
-        runBlocking {
-            val tags = gitHubRestClient.client.getTags(name, project)
-            tags.forEach {
-                results.add(
-                    GitVersion(
-                        name,
-                        project,
-                        igorProperties.spinnaker.jedis.prefix,
-                        it.name,
-                        it.commit.sha
-                    )
-                )
-            }
+    private fun postEvent(cachedVersions: Set<String>, gitVersion: GitVersion) {
+        if (!keelService.isPresent || cachedVersions.isEmpty()) {
+            log.debug("keel service is not enabled or nothing is in cache. Will not send notification.")
+            return
         }
-        return results.toList()
+
+        val metadata = generateMetaData(gitVersion)
+        val artifact = Artifact.builder()
+            .type("GIT")
+            .customKind(false)
+            .name(gitVersion.uniqueName)
+            .version(gitVersion.version)
+            .location(gitVersion.uniqueName)
+            .reference(gitVersion.toString())
+            .metadata(metadata)
+            .provenance(gitVersion.uniqueName)
+            .build()
+        val artifactEvent = mapOf(
+            "payload" to mapOf(
+                "artifacts" to listOf(artifact),
+                "details" to emptyMap<String, String>()
+            ),
+            "eventName" to "spinnaker_artifacts_git"
+        )
+        log.debug("sending artifact event to keel")
+        AuthenticatedRequest.allowAnonymous {
+            keelService.get().sendArtifactEvent(artifactEvent)
+        }
     }
 }

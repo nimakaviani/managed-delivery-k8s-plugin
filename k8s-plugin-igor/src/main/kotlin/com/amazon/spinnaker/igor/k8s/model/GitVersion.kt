@@ -11,6 +11,7 @@ data class GitVersion(
     val type: String = "github",
 ) : DeltaItem {
     private val id = "git"
+    val uniqueName = "$project/$name"
 
     override fun toString(): String {
         return "${prefix}:$id:$type:$project:$name:$version"

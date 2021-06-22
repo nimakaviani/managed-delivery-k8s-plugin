@@ -11,15 +11,17 @@ import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.igor.history.EchoService
 import com.netflix.spinnaker.igor.keel.KeelService
 import com.netflix.spinnaker.igor.polling.PollContext
+import com.netflix.spinnaker.kork.artifacts.model.Artifact
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
+import strikt.assertions.isTrue
 import java.util.*
 
-class GitMonitorTest {
+class GitHubMonitorTest {
     val igorProperties = mockk<IgorConfigurationProperties>()
     val gitCache = mockk<GitCache>()
     val gitHubAccounts = mockk<GitHubAccounts>()
@@ -37,7 +39,7 @@ class GitMonitorTest {
             } returns 123
     }
 
-    val gitMonitor = GitMonitor(
+    val gitHubMonitor = GitHubMonitor(
         igorProperties,
         DefaultRegistry(),
         null,
@@ -45,10 +47,10 @@ class GitMonitorTest {
         Optional.empty(),
         null,
         gitCache,
-        gitHubRestClient,
-        gitHubAccounts,
         Optional.of(echoService),
-        Optional.of(keelService)
+        Optional.of(keelService),
+        gitHubRestClient,
+        gitHubAccounts
     )
 
     @BeforeEach
@@ -71,7 +73,7 @@ class GitMonitorTest {
         } returns Unit
 
         every {
-            gitHubRestClient.client.getTags("test-name", "test-project")
+            gitHubRestClient.client.getTags("test-project", "test-name")
         } returns listOf(
             GitHubTagResponse(
                 "0.0.1",
@@ -81,6 +83,25 @@ class GitMonitorTest {
                 GitHubCommit("sha123", "some-url")
             )
         )
+
+        every {
+            gitHubRestClient.client.getCommit("test-project", "test-name", "sha123")
+        } returns GitHubCommitResponse(
+                sha = "sha123",
+                htmlURL = "some_url",
+                commit = Commit(
+                    message = "some_message",
+                    author = CommitAuthor(
+                        name = "me",
+                        email = "email",
+                        date = "date"
+                    )
+                )
+        )
+
+        every {
+            keelService.sendArtifactEvent(any())
+        } returns null
     }
 
     @AfterEach
@@ -90,14 +111,50 @@ class GitMonitorTest {
 
     @Test
     fun `should cache deltas`() {
-        gitMonitor.poll(false)
+        gitHubMonitor.poll(false)
 
         verify {
-            gitHubRestClient.client.getTags("test-name", "test-project")
+            gitHubRestClient.client.getTags("test-project", "test-name")
             gitCache.cacheVersion(any())
             gitCache.getVersions("github", "test-project", "test-name")
             gitHubAccounts.accounts
         }
+    }
+
+    @Test
+    fun `should notify keel`() {
+        clearMocks(keelService)
+        val slot = slot<Map<String, Any>>()
+        every {
+            keelService.sendArtifactEvent(capture(slot))
+        } returns null
+
+        every {
+            gitCache.getVersions("github", "test-project", "test-name")
+        } returns setOf("igor:git:github:test-project:test-name:0.0.1")
+
+        every {
+            gitHubRestClient.client.getTags("test-project", "test-name")
+        } returns listOf(
+            GitHubTagResponse(
+                "0.0.2",
+                "",
+                "",
+                "",
+                GitHubCommit("sha123", "some-url")
+            )
+        )
+
+        gitHubMonitor.poll(false)
+
+        verify(exactly = 1) {
+            keelService.sendArtifactEvent(any())
+        }
+        val payload = slot.captured["payload"] as Map<String, Object >
+        val artifacts = payload["artifacts"] as List<Artifact>
+
+        expectThat(artifacts.isNotEmpty()).isTrue()
+        expectThat(artifacts[0].name).isEqualTo("test-project/test-name")
     }
 
     @Test
@@ -106,10 +163,10 @@ class GitMonitorTest {
             gitCache.getVersions("github", "test-project", "test-name")
         } returns setOf("igor:git:github:test-project:test-name:0.0.1")
 
-        gitMonitor.poll(false)
+        gitHubMonitor.poll(false)
 
         verify(exactly = 1) {
-            gitHubRestClient.client.getTags("test-name", "test-project")
+            gitHubRestClient.client.getTags("test-project", "test-name")
             gitCache.getVersions("github", "test-project", "test-name")
             gitHubAccounts.accounts
         }
@@ -125,7 +182,7 @@ class GitMonitorTest {
         } returns setOf("igor:git:github:test-project:test-name:0.0.1")
 
         every {
-            gitHubRestClient.client.getTags("test-name", "test-project")
+            gitHubRestClient.client.getTags("test-project", "test-name")
         } returns listOf(
             GitHubTagResponse(
                 "0.0.1",
@@ -148,13 +205,15 @@ class GitMonitorTest {
             gitCache.cacheVersion(capture(slot))
         } returns Unit
 
-        gitMonitor.poll(false)
+        gitHubMonitor.poll(false)
 
         verify(exactly = 1) {
-            gitHubRestClient.client.getTags("test-name", "test-project")
             gitCache.getVersions("github", "test-project", "test-name")
             gitHubAccounts.accounts
             gitCache.cacheVersion(any())
+        }
+        verify {
+            gitHubRestClient.client.getTags("test-project", "test-name")
         }
         expectThat(slot.captured.deltas.size).isEqualTo(1)
         expectThat(slot.captured.deltas[0].version).isEqualTo("0.0.2")
