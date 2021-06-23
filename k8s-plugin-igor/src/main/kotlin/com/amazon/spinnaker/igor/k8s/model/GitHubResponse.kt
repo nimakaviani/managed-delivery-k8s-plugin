@@ -34,18 +34,7 @@ data class GitHubCommitResponse(
 
     @JsonProperty("html_url")
     val htmlURL: String,
-) {
-    fun toMetaData(): Map<String, String> {
-        return mapOf(
-            "commitId" to sha,
-            "url" to htmlURL,
-            "date" to commit.author.date,
-            "author" to commit.author.name,
-            "email" to commit.author.email,
-            "message" to commit.message
-        )
-    }
-}
+)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Commit (

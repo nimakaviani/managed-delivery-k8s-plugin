@@ -27,6 +27,7 @@ spinnakerPlugin {
 dependencies {
 //    compileOnly ("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${kotlinVersion}")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
+    implementation (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.12.1')
     compileOnly (group: 'io.spinnaker.igor', name: 'igor-core', version: "${igorVersion}")
     compileOnly (group: 'io.spinnaker.igor', name: 'igor-web', version: "${igorVersion}")
     compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")

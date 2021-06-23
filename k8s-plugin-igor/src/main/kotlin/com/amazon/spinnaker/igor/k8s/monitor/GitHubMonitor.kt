@@ -53,7 +53,7 @@ lockService, scheduler, gitCache, echoService, keelService) {
         val name = ctx?.context?.get("name") as String
         val project = ctx.context?.get("project") as String
 
-        val cachedVersion = gitCache.getVersions(ctx.context?.get("type") as String, project, name)
+        val cachedVersion = gitCache.getVersionKeys(ctx.context?.get("type") as String, project, name)
         log.debug("versions in cache $cachedVersion")
         val versions = getGitHubTags(name, project)
         log.debug("versions from remote: $versions")
@@ -67,6 +67,15 @@ lockService, scheduler, gitCache, echoService, keelService) {
         }
         log.info("generated ${deltas.size} deltas")
         log.debug("$deltas")
+        deltas.forEach {
+            val commitInfo = gitHubRestClient.client.getCommit(it.project, it.name, it.commitId)
+            it.url = commitInfo.htmlURL
+            it.date = commitInfo.commit.author.date
+            it.author = commitInfo.commit.author.name
+            it.message = commitInfo.commit.message
+            it.email = commitInfo.commit.author.email
+        }
+
         return GitPollingDelta(
             deltas,
             cachedVersion.toSet()
@@ -74,8 +83,7 @@ lockService, scheduler, gitCache, echoService, keelService) {
     }
 
     override fun generateMetaData(version: GitVersion): Map<String, Any> {
-        val commit =  gitHubRestClient.client.getCommit(version.project, version.name, version.sha)
-        return commit.toMetaData()
+        return version.toMap()
     }
 
     private fun getGitHubTags(name: String, project: String): List<GitVersion> {

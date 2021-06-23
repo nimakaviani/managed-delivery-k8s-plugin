@@ -4,13 +4,10 @@ import com.amazon.spinnaker.igor.k8s.cache.GitCache
 import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
 import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
 import com.amazon.spinnaker.igor.k8s.model.*
-import com.amazon.spinnaker.igor.k8s.monitor.GitMonitor
 import com.netflix.spectator.api.DefaultRegistry
 import com.netflix.spinnaker.igor.IgorConfigurationProperties
-import com.netflix.spectator.api.Registry
 import com.netflix.spinnaker.igor.history.EchoService
 import com.netflix.spinnaker.igor.keel.KeelService
-import com.netflix.spinnaker.igor.polling.PollContext
 import com.netflix.spinnaker.kork.artifacts.model.Artifact
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
@@ -65,7 +62,7 @@ class GitHubMonitorTest {
         } returns accounts
 
         every {
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
         } returns emptySet()
 
         every {
@@ -116,7 +113,7 @@ class GitHubMonitorTest {
         verify {
             gitHubRestClient.client.getTags("test-project", "test-name")
             gitCache.cacheVersion(any())
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
             gitHubAccounts.accounts
         }
     }
@@ -130,7 +127,7 @@ class GitHubMonitorTest {
         } returns null
 
         every {
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
         } returns setOf("igor:git:github:test-project:test-name:0.0.1")
 
         every {
@@ -160,14 +157,14 @@ class GitHubMonitorTest {
     @Test
     fun `should not cache deltas`() {
         every {
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
         } returns setOf("igor:git:github:test-project:test-name:0.0.1")
 
         gitHubMonitor.poll(false)
 
         verify(exactly = 1) {
             gitHubRestClient.client.getTags("test-project", "test-name")
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
             gitHubAccounts.accounts
         }
         verify(exactly = 0) {
@@ -178,7 +175,7 @@ class GitHubMonitorTest {
     @Test
     fun `should cache deltas when new version is available`() {
         every {
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
         } returns setOf("igor:git:github:test-project:test-name:0.0.1")
 
         every {
@@ -208,7 +205,7 @@ class GitHubMonitorTest {
         gitHubMonitor.poll(false)
 
         verify(exactly = 1) {
-            gitCache.getVersions("github", "test-project", "test-name")
+            gitCache.getVersionKeys("github", "test-project", "test-name")
             gitHubAccounts.accounts
             gitCache.cacheVersion(any())
         }

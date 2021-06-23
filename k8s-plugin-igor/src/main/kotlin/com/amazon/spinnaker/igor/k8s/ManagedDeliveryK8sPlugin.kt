@@ -4,7 +4,9 @@ import com.amazon.spinnaker.igor.k8s.cache.GitCache
 import com.amazon.spinnaker.igor.k8s.config.GitHubAccounts
 import com.amazon.spinnaker.igor.k8s.config.GitHubRestClient
 import com.amazon.spinnaker.igor.k8s.config.PluginConfigurationProperties
+import com.amazon.spinnaker.igor.k8s.controller.GitVersionController
 import com.amazon.spinnaker.igor.k8s.monitor.GitHubMonitor
+import com.amazon.spinnaker.igor.k8s.service.GitControllerService
 import com.netflix.spinnaker.kork.plugins.api.spring.PrivilegedSpringPlugin
 import org.pf4j.PluginWrapper
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -23,9 +25,11 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
         listOf(
             beanDefinitionFor(GitHubRestClient::class.java),
             beanDefinitionFor(GitHubAccounts::class.java),
-            beanDefinitionFor(PluginConfigurationProperties::class.java),
             beanDefinitionFor(GitHubMonitor::class.java),
-            beanDefinitionFor(GitCache::class.java)
+            beanDefinitionFor(GitControllerService::class.java),
+            beanDefinitionFor(GitVersionController::class.java),
+            beanDefinitionFor(PluginConfigurationProperties::class.java),
+            beanDefinitionFor(GitCache::class.java),
         ).forEach {
             registerBean(it, registry)
         }
