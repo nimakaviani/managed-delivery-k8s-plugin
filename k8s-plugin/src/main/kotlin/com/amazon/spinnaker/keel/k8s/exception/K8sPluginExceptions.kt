@@ -10,7 +10,7 @@ class NoDigestFound(repository: String, tag: String) :
     ResourceCurrentlyUnresolvable("No digest found for docker image $repository:$tag in any registry")
 
 class RegistryNotFound(account: String) :
-    IntegrationException("Unable to find docker registry for titus account $account")
+    IntegrationException("Unable to find docker registry for account $account")
 
 class DuplicateReference(reference: String) :
     IntegrationException("there are duplicate containers with reference $reference")
