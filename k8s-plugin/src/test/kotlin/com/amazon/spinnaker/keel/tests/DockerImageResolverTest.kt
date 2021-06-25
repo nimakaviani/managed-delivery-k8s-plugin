@@ -1,6 +1,7 @@
 package com.amazon.spinnaker.keel.tests;
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.exception.DockerImageNotFound
 import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NotLinked
 import com.amazon.spinnaker.keel.k8s.model.*
@@ -332,6 +333,37 @@ internal class DockerImageResolverTest : JUnit5Minutests {
 
                 test("a DuplicateReference exception is thrown") {
                     expectThrows<DuplicateReference> { this.invoke(deploymentSpec) }
+                }
+            }
+
+            context("for a k8s resource with duplicate reference") {
+                before {
+                    deploymentSpec = deploymentSpec(
+                        references = mutableSetOf("main-container", "sidecar-container"),
+                        containers = arrayListOf(
+                            mapOf(
+                                "name" to "main",
+                                "image" to "main-container"
+                            )
+                        )
+                    )
+
+                    deliveryConfig = deliveryConfig(resources = setOf(deploymentSpec))
+
+                    every { repository.deliveryConfigFor(deploymentSpec.id) } returns deliveryConfig
+                    every { repository.environmentFor(deploymentSpec.id) } returns deliveryConfig.environments.first()
+
+                    every {
+                        repository.latestVersionApprovedIn(
+                            deliveryConfig,
+                            artifacts.elementAt(0),
+                            "test"
+                        )
+                    } returns "0.0.10"
+                }
+
+                test("a DuplicateReference exception is thrown") {
+                    expectThrows<DockerImageNotFound> { this.invoke(deploymentSpec) }
                 }
             }
 

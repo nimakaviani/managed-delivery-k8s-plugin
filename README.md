@@ -6,7 +6,7 @@
 | Plugin      |   Keel   |
 |:----------- | :--------|
 |  <= 0.0.6   |  0.191.1 |
-
+|  0.0.7 <=   |  0.194.1 |
 
 It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
 version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),
