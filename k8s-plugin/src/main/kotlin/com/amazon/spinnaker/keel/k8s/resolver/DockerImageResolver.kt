@@ -4,14 +4,17 @@ import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NoDigestFound
 import com.amazon.spinnaker.keel.k8s.exception.NotLinked
+import com.amazon.spinnaker.keel.k8s.exception.RegistryNotFound
+import com.amazon.spinnaker.keel.k8s.model.ClouddriverDockerImage
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
+import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.artifacts.DockerArtifact
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverService
-import com.netflix.spinnaker.keel.docker.ContainerProvider
+import com.netflix.spinnaker.keel.docker.*
 import com.netflix.spinnaker.keel.docker.DockerImageResolver
-import com.netflix.spinnaker.keel.docker.MultiReferenceContainerProvider
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import kotlinx.coroutines.runBlocking
 import org.springframework.stereotype.Component
@@ -20,7 +23,8 @@ import org.springframework.stereotype.Component
 class DockerImageResolver(
     repository: KeelRepository,
     private val cloudDriverCache: CloudDriverCache,
-    private val cloudDriverService: CloudDriverService
+    private val cloudDriverService: CloudDriverService,
+    private val cloudDriverK8sService: CloudDriverK8sService
 ) : DockerImageResolver<K8sResourceSpec>(
     repository
 ) {
@@ -38,9 +42,10 @@ class DockerImageResolver(
             artifact: DockerArtifact,
             tag: String
     ): Resource<K8sResourceSpec> {
+        val digestProvider = (container as DigestProvider)
         val resourceTemplate = (resource.spec.template.spec?.get(TEMPLATE) as MutableMap<String, Any>)
         val updatedMap = setValue(resourceTemplate, IMAGE, artifact.reference,
-            "${artifact.organization}/${artifact.image}:${tag}")
+            digestProvider.image)
         resource.spec.template.spec!![TEMPLATE] = updatedMap
         return resource
     }
@@ -78,10 +83,57 @@ class DockerImageResolver(
         }
         return m
     }
-
     protected fun K8sResourceSpec.deriveRegistry(): String =
             // TODO: fix the naming convention used for the docker registry
             "${locations.account}-registry"
+
+    override fun invoke(resource: Resource<K8sResourceSpec>): Resource<K8sResourceSpec> {
+        val container = getContainerFromSpec(resource)
+        if (container is DigestProvider || (container is MultiReferenceContainerProvider && container.references.isEmpty())) {
+            return resource
+        }
+
+        val deliveryConfig = repository.deliveryConfigFor(resource.id)
+        val environment = repository.environmentFor(resource.id)
+        val account = getAccountFromSpec(resource)
+
+        val containers = mutableListOf<ContainerProvider>()
+        if (container is MultiReferenceContainerProvider) {
+            container.references.forEach {
+                containers.add(ReferenceProvider(it))
+            }
+        } else {
+            containers.add(container)
+        }
+
+        var updatedResource = resource
+        containers.forEach {
+            val artifact = getArtifact(it, deliveryConfig)
+            val tag: String = findTagGivenDeliveryConfig(deliveryConfig, environment, artifact)
+            val dockerImage = getImage(account, artifact, tag, resource.serviceAccount)
+            val newContainer = DigestProvider(
+                organization = "",
+                image = dockerImage.artifact.reference,
+                digest = dockerImage.digest
+            )
+            updatedResource = updateContainerInSpec(updatedResource, newContainer, artifact, tag)
+        }
+        return updatedResource
+    }
+
+    fun getImage(account: String, artifact: DockerArtifact, tag: String, serviceAccount: String): ClouddriverDockerImage {
+        return runBlocking {
+            val images = cloudDriverK8sService.findDockerImages(
+                account = account, repository = artifact.name, tag = tag, user = serviceAccount)
+            // older clouddriver does not support repository and tag params
+            images.forEach {
+                if (it.account == account && it.repository == artifact.name && it.tag == tag) {
+                    return@runBlocking it
+                }
+            }
+            throw RegistryNotFound(account)
+        }
+    }
 }
 
 

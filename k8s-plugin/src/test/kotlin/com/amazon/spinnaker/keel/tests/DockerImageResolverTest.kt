@@ -3,7 +3,7 @@ package com.amazon.spinnaker.keel.tests;
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
 import com.amazon.spinnaker.keel.k8s.exception.NotLinked
-import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.resolver.DockerImageResolver
 import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Environment
@@ -16,8 +16,7 @@ import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverService
 import com.netflix.spinnaker.keel.clouddriver.model.DockerImage
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.K8sBlob
+import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
 import io.mockk.coEvery
@@ -32,6 +31,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
     val repository: KeelRepository = mockk()
     val clouddriverCache : CloudDriverCache = mockk()
     val clouddriverService : CloudDriverService = mockk()
+    val cloudDriverK8sService: CloudDriverK8sService = mockk()
 
     private val artifacts = setOf(
         DockerArtifact(name = "spkr/main", reference = "main-container", tagVersionStrategy = SEMVER_TAG, deliveryConfigName = "mydeliveryconfig"),
@@ -42,7 +42,8 @@ internal class DockerImageResolverTest : JUnit5Minutests {
         kind = K8S_RESOURCE_SPEC_V1.kind,
         metadata = mapOf(
             "id" to "deployment",
-            "application" to "test"
+            "application" to "test",
+            "serviceAccount" to "keel@spinnaker"
         ),
         spec = K8sResourceSpec(
             container = MultiReferenceContainerProvider(
@@ -113,7 +114,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
 
     fun tests() = rootContext<DockerImageResolver> {
         fixture {
-            DockerImageResolver(repository, clouddriverCache, clouddriverService)
+            DockerImageResolver(repository, clouddriverCache, clouddriverService, cloudDriverK8sService)
         }
 
         lateinit var deploymentSpec : Resource<K8sResourceSpec>
@@ -125,7 +126,39 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                         listOf(DockerImage("test-registry", "spkr/main", "0.0.1", "sha:1111"))
                 coEvery { clouddriverService.findDockerImages("test-registry", "spkr/sidecar", "0.0.2", null) } returns
                         listOf(DockerImage("test-registry", "spkr/sidecar", "0.0.2", "sha:2222"))
-
+                coEvery { cloudDriverK8sService.findDockerImages(any(), any(), any(), any(), any(), any())} returns
+                        listOf(
+                            ClouddriverDockerImage(
+                                "test-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/main", "index.docker.io/spkr/main:0.0.1", "docker", "0.0.1"),
+                                "sha:1111", "index.docker.io", "spkr/main", "0.0.1"
+                            ),
+                            ClouddriverDockerImage(
+                                "test-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/sidecar", "index.docker.io/spkr/sidecar:0.0.1", "docker", "0.0.1"),
+                                "sha:2222", "index.docker.io", "spkr/sidecar", "0.0.1"
+                            ),
+                            ClouddriverDockerImage(
+                                "test-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/sidecar", "index.docker.io/spkr/sidecar:0.0.2", "docker", "0.0.2"),
+                                "sha:2222", "index.docker.io", "spkr/sidecar", "0.0.2"
+                            ),
+                            ClouddriverDockerImage(
+                                "junk-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/sidecar", "junk/spkr/main:0.0.2", "docker", "0.0.2"),
+                                "sha:2222", "index.docker.io", "spkr/main", "0.0.2"
+                            ),
+                            ClouddriverDockerImage(
+                                "test-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/main", "index.docker.io/spkr/junk:0.0.1", "docker", "0.0.1"),
+                                "sha:1111", "index.docker.io", "spkr/junk", "0.0.1"
+                            ),
+                            ClouddriverDockerImage(
+                                "test-registry",
+                                Artifact(Metadata(emptyMap(), "index.docker.io"), "spkr/main", "index.docker.io/spkr/main:1.0.1", "docker", "1.0.1"),
+                                "sha:1111", "index.docker.io", "spkr/main", "1.0.1"
+                            )
+                        )
             }
 
 
@@ -165,7 +198,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                 test("the main contianer is resolved correctly") {
                     val resolvedResource = this.invoke(deploymentSpec)
                     expect {
-                        that(getImageWithName(resolvedResource, "main")).isEqualTo("spkr/main:0.0.1")
+                        that(getImageWithName(resolvedResource, "main")).isEqualTo("index.docker.io/spkr/main:0.0.1")
                     }
                 }
             }
@@ -212,10 +245,10 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                 test("both containers are resolved correctly") {
                     val resolvedResource = this.invoke(deploymentSpec)
                     expect {
-                        that(getImageWithName(resolvedResource, "main")).isEqualTo("spkr/main:0.0.1")
+                        that(getImageWithName(resolvedResource, "main")).isEqualTo("index.docker.io/spkr/main:0.0.1")
                     }
                     expect {
-                        that(getImageWithName(resolvedResource, "sidecar")).isEqualTo("spkr/sidecar:0.0.2")
+                        that(getImageWithName(resolvedResource, "sidecar")).isEqualTo("index.docker.io/spkr/sidecar:0.0.2")
                     }
                 }
             }
