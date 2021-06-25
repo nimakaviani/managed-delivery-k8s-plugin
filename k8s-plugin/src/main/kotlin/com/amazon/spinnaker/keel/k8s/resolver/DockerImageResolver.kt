@@ -1,10 +1,7 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
-import com.amazon.spinnaker.keel.k8s.exception.DuplicateReference
-import com.amazon.spinnaker.keel.k8s.exception.NoDigestFound
-import com.amazon.spinnaker.keel.k8s.exception.NotLinked
-import com.amazon.spinnaker.keel.k8s.exception.RegistryNotFound
+import com.amazon.spinnaker.keel.k8s.exception.*
 import com.amazon.spinnaker.keel.k8s.model.ClouddriverDockerImage
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -17,6 +14,7 @@ import com.netflix.spinnaker.keel.docker.*
 import com.netflix.spinnaker.keel.docker.DockerImageResolver
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
 import org.springframework.stereotype.Component
 
 @Component
@@ -28,6 +26,7 @@ class DockerImageResolver(
 ) : DockerImageResolver<K8sResourceSpec>(
     repository
 ) {
+    private val logger = KotlinLogging.logger {}
     override val supportedKind = K8S_RESOURCE_SPEC_V1
 
     override fun getContainerFromSpec(resource: Resource<K8sResourceSpec>) =
@@ -116,6 +115,7 @@ class DockerImageResolver(
                 image = dockerImage.artifact.reference,
                 digest = dockerImage.digest
             )
+            logger.info("resolving $artifact to ${dockerImage.artifact.reference}")
             updatedResource = updateContainerInSpec(updatedResource, newContainer, artifact, tag)
         }
         return updatedResource
@@ -123,15 +123,18 @@ class DockerImageResolver(
 
     fun getImage(account: String, artifact: DockerArtifact, tag: String, serviceAccount: String): ClouddriverDockerImage {
         return runBlocking {
+            logger.debug("getting docker images from clouddriver. account: $account, repository: ${artifact.name}, tag: $tag")
             val images = cloudDriverK8sService.findDockerImages(
                 account = account, repository = artifact.name, tag = tag, user = serviceAccount)
+            logger.debug("$images")
             // older clouddriver does not support repository and tag params
             images.forEach {
                 if (it.account == account && it.repository == artifact.name && it.tag == tag) {
+                    logger.debug("found docker image $it")
                     return@runBlocking it
                 }
             }
-            throw RegistryNotFound(account)
+            throw DockerImageNotFound(account, artifact.name, tag)
         }
     }
 }

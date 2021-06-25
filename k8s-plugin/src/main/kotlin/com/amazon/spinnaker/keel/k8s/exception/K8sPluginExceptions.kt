@@ -9,6 +9,9 @@ import java.lang.Exception
 class NoDigestFound(repository: String, tag: String) :
     ResourceCurrentlyUnresolvable("No digest found for docker image $repository:$tag in any registry")
 
+class DockerImageNotFound(account: String, repository: String, tag: String) :
+    ResourceCurrentlyUnresolvable("No Docker image found for $repository:$tag in $account")
+
 class RegistryNotFound(account: String) :
     IntegrationException("Unable to find docker registry for account $account")
 
