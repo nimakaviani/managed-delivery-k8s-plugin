@@ -151,7 +151,7 @@ class GitHubMonitorTest {
         val artifacts = payload["artifacts"] as List<Artifact>
 
         expectThat(artifacts.isNotEmpty()).isTrue()
-        expectThat(artifacts[0].name).isEqualTo("test-project/test-name")
+        expectThat(artifacts[0].name).isEqualTo("git/github/test-project/test-name")
     }
 
     @Test

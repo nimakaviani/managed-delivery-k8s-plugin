@@ -81,7 +81,7 @@ class GitCacheTest {
         val returnedMap = result.toMap().toMutableMap()
         returnedMap.remove("uniqueName")
 
-        expectThat(result.uniqueName).isEqualTo("test-project/test-repo")
+        expectThat(result.uniqueName).isEqualTo("git/github/test-project/test-repo")
         expectThat(returnedMap).isEqualTo(cachedVersion)
     }
 

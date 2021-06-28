@@ -5,19 +5,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.netflix.spinnaker.keel.api.artifacts.*
 
 data class GitRepoArtifact(
-    val account: String? = null,
-    val chartName: String,
-    override val deliveryConfigName: String? = null,
-    override val name: String,
+    override var deliveryConfigName: String? = null,
     val namespace: String? = null,
-    override val reference: String = name,
-    override val type: ArtifactType,
-    val url: String,
+    val repoName: String,
+    val project: String,
+    val gitType: String,
     val tagVersionStrategy: TagVersionStrategy,
 ) : DeliveryArtifact() {
+    override val name = "$GIT/$gitType/$project/$repoName"
+    override val reference: String = name
+    override val type = GIT
 
     @JsonIgnore
     override val statuses: Set<ArtifactStatus> = emptySet()
 
     override val sortingStrategy: SortingStrategy = GitRepoVersionSortingStrategy(tagVersionStrategy)
 }
+
+const val GIT: ArtifactType = "git"
