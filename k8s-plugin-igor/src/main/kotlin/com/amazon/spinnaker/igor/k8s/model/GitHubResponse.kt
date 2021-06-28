@@ -1,55 +1,39 @@
 package com.amazon.spinnaker.igor.k8s.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class GitHubTagResponse(
-    @JsonProperty("name")
-    val name: String,
-    @JsonProperty("zipball_url")
-    val zipball_url: String,
-    @JsonProperty("tarball_url")
-    val tarball_url: String,
-    @JsonProperty("node_id")
-    val node_id: String,
-    @JsonProperty("commit")
-    val commit: GitHubCommit
+class GitHubTagResponse(
+    var name: String = "",
+    var zipball_url: String = "",
+    var tarball_url: String = "",
+    var node_id: String = "",
+    var commit: GitHubCommit = GitHubCommit()
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class GitHubCommit(
-    @JsonProperty("sha")
-    val sha: String,
-    @JsonProperty("url")
-    val url: String
+class GitHubCommit(
+    var sha: String = "",
+    var url: String = ""
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class GitHubCommitResponse(
-    @JsonProperty("sha")
-    val sha: String,
-    @JsonProperty("commit")
-    val commit: Commit,
+class GitHubCommitResponse(
+    var sha: String = "",
+    var commit: Commit = Commit(),
 
-    @JsonProperty("html_url")
-    val htmlURL: String,
+    var htmlURL: String = "",
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class Commit (
-    @JsonProperty("author")
-    val author: CommitAuthor,
-    @JsonProperty("message")
-    val message: String,
+class Commit (
+    var author: CommitAuthor = CommitAuthor(),
+    var message: String  = "",
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class CommitAuthor (
-    @JsonProperty("name")
-    val name: String,
-    @JsonProperty("email")
-    val email: String,
-    @JsonProperty("date")
-    val date: String
+class CommitAuthor (
+    var name: String = "",
+    var email: String = "",
+    var date: String = ""
 )
