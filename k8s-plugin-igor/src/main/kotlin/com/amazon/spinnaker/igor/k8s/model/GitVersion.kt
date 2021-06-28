@@ -18,7 +18,7 @@ data class GitVersion(
     var email: String? = null
 ) : DeltaItem {
     private val id = "git"
-    val uniqueName = "$project/$name"
+    val uniqueName = "$id/$type/$project/$name"
 
     override fun toString(): String {
         return "${prefix}:$id:$type:$project:$name:$version"

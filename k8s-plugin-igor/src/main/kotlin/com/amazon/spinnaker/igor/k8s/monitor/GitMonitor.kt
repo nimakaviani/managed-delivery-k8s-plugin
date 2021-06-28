@@ -67,7 +67,7 @@ abstract class GitMonitor(
 
         val metadata = generateMetaData(gitVersion)
         val artifact = Artifact.builder()
-            .type("GIT")
+            .type("git")
             .customKind(false)
             .name(gitVersion.uniqueName)
             .version(gitVersion.version)
