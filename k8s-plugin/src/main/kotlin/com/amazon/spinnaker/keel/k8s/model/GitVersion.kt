@@ -12,6 +12,7 @@ data class GitVersion(
     val version: String,
     val commitId: String,
     val type: String,
+    val repoUrl: String,
     var url: String? = null,
     var date: String? = null,
     var author: String? = null,
@@ -29,7 +30,8 @@ data class GitVersion(
                 "date" to this.date,
                 "author" to this.author,
                 "message" to this.message,
-                "email" to this.email
+                "email" to this.email,
+                "repoUrl" to this.repoUrl
             ),
             gitMetadata = GitMetadata(
                 this.commitId,
@@ -47,9 +49,6 @@ data class GitVersion(
                     this.message
                 )
             )
-
-
-
         )
     }
 }

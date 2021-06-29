@@ -6,7 +6,7 @@ import com.netflix.spinnaker.keel.api.artifacts.*
 
 data class GitRepoArtifact(
     override var deliveryConfigName: String? = null,
-    val namespace: String? = null,
+    val namespace: String = "flux-system",
     val repoName: String,
     val project: String,
     val gitType: String,
