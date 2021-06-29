@@ -40,10 +40,10 @@ open class GitHubAccounts(pluginConfigurationProperties: PluginConfigurationProp
     lateinit var accounts: MutableList<GitHubAccount>
 
     init {
-        pluginConfigurationProperties.accounts.forEach {
+        pluginConfigurationProperties.repositories.forEach {
             val gitHubAccounts = mutableListOf<GitHubAccount>()
             if (it.type.toLowerCase() == "github") {
-                gitHubAccounts.add(GitHubAccount(name = it.name, project = it.project))
+                gitHubAccounts.add(GitHubAccount(name = it.name, project = it.project, url = it.url))
             }
             accounts = gitHubAccounts
         }

@@ -60,6 +60,7 @@ class GitCacheTest {
             "version" to "1.0.0",
             "commitId" to "sha123",
             "type" to "github",
+            "repoUrl" to "some-url",
             "url" to "some-url",
             "date" to "some-date",
             "author" to "author1",

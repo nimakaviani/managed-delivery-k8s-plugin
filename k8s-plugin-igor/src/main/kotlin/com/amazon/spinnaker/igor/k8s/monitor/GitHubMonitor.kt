@@ -40,7 +40,7 @@ lockService, scheduler, gitCache, echoService, keelService) {
             pollSingle(
                 PollContext(
                     "${it.project}/${it.name}",
-                    mapOf("name" to it.name, "project" to it.project, "type" to it.type),
+                    mapOf("name" to it.name, "project" to it.project, "type" to it.type, "repoUrl" to it.url),
                     !sendEvents
                 )
             )
@@ -52,6 +52,7 @@ lockService, scheduler, gitCache, echoService, keelService) {
         val deltas = mutableListOf<GitVersion>()
         val name = ctx?.context?.get("name") as String
         val project = ctx.context?.get("project") as String
+        val repoUrl = ctx.context?.get("repoUrl") as String
 
         val cachedVersion = gitCache.getVersionKeys(ctx.context?.get("type") as String, project, name)
         log.debug("versions in cache $cachedVersion")
@@ -61,7 +62,7 @@ lockService, scheduler, gitCache, echoService, keelService) {
             if (!cachedVersion.contains(it.toString())) {
                 log.debug("$it is not cached. will be cached")
                 deltas.add(
-                    it.copy()
+                    it.copy(repoUrl = repoUrl)
                 )
             }
         }

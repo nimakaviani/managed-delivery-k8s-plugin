@@ -54,7 +54,8 @@ class GitHubMonitorTest {
     fun setupMocks() {
         val accounts = mutableListOf(GitHubAccount(
             name = "test-name",
-            project = "test-project"
+            project = "test-project",
+            url = "some-url"
         ))
 
         every {

@@ -11,6 +11,7 @@ data class GitVersion(
     val version: String,
     val commitId: String,
     val type: String = "github",
+    var repoUrl: String = "",
     var url: String? = null,
     var date: String? = null,
     var author: String? = null,
@@ -29,7 +30,7 @@ data class GitVersion(
     }
 
     override fun equals(other: Any?): Boolean {
-        return other is GitHubAccount && toString() == other.toString()
+        return other is GitVersion && toString() == other.toString()
     }
 
     fun toMap(): Map<String, String> {
