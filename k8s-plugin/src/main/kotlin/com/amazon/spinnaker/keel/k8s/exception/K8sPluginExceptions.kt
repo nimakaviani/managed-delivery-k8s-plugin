@@ -12,6 +12,9 @@ class NoDigestFound(repository: String, tag: String) :
 class DockerImageNotFound(account: String, repository: String, tag: String) :
     ResourceCurrentlyUnresolvable("No Docker image found for $repository:$tag in $account")
 
+class NoGitVersionAvailable(repository: String) :
+    ResourceCurrentlyUnresolvable("No git version available for deployment in $repository")
+
 class RegistryNotFound(account: String) :
     IntegrationException("Unable to find docker registry for account $account")
 

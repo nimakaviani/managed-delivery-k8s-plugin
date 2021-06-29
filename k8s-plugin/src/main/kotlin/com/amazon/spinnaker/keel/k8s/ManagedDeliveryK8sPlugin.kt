@@ -28,12 +28,10 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
                 beanDefinitionFor(DockerImageResolver::class.java),
                 beanDefinitionFor(CredentialsResourceHandler::class.java),
                 beanDefinitionFor(KustomizeResourceHandler::class.java),
-                beanDefinitionFor(GitArtifactSupplier::class.java)
+                beanDefinitionFor(GitArtifactSupplier::class.java),
+                beanDefinitionFor(GitVersionResolver::class.java)
         ).forEach {
             registerBean(it, registry)
         }
     }
-
-
 }
-
