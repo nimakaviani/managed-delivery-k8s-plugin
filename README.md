@@ -73,6 +73,8 @@ More details on the above can be found on the corresponding
 
 ## Deploying to Kubernetes
 
+### Supported Deployments
+
 Support for Kubernetes deployments in the plugin is split into several parts as listed below (expand for details):
 
 <details>
@@ -418,6 +420,19 @@ the `type` of the credential is set to `git`. This in turn will create a secret 
 (prepending the credential type to the account name)
 in the `default` namespace, which can be used in your Flux specification of HELM or Kustomize resources.
 </details>
+
+### Discovering Deployed Resources
+
+- All kubernetes resources deployed via the plugin are labeled with the label `md.spinnaker.io/plugin: k8s`.
+- Spinnaker's clouddriver labels deployed resources with the name of the application, e.g. for
+an application named `spinmd`, your created Kubernetes resources for this application are labeled with
+`app.kubernetes.io/name: spinmd`.
+
+The combination should allow you to query for application resources created by the plugin:
+
+```bash
+kubectl get all -l md.spinnaker.io/plugin=k8s,app.kubernetes.io/name=spinmd
+```
 
 ## Build and Test
 
