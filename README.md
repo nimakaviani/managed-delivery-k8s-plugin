@@ -174,6 +174,7 @@ dockerRegistry:
 accounts:
 - address: https://index.docker.io # example registry
   name: "[K8s-ACCOUNT-NAME]-registry"
+  trackDigests: true
   repositories:
   - example/service
 ```
