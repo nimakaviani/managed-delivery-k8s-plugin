@@ -43,7 +43,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
         kind = K8S_RESOURCE_SPEC_V1.kind,
         metadata = mapOf(
             "id" to "deployment",
-            "application" to "test",
+            "application" to "fnord",
             "serviceAccount" to "keel@spinnaker"
         ),
         spec = K8sResourceSpec(
@@ -54,7 +54,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                 account = "test",
                 regions = emptySet()
             ),
-            metadata = mapOf("application" to "test"),
+            metadata = mapOf("application" to "fnord"),
             template = K8sObjectManifest(
                 apiVersion = "apps/v1",
                 kind = "Deployment",
@@ -77,7 +77,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
         kind = K8S_RESOURCE_SPEC_V1.kind,
         metadata = mapOf(
             "id" to "service",
-            "application" to "test"
+            "application" to "fnord"
         ),
         spec = K8sResourceSpec(
             container = null,
@@ -85,7 +85,7 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                 account = "test",
                 regions = emptySet()
             ),
-            metadata = mapOf("application" to "test"),
+            metadata = mapOf("application" to "fnord"),
             template = K8sObjectManifest(
                 apiVersion = "v1",
                 kind = "Service",

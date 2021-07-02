@@ -65,13 +65,15 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: "v1"
         |  kind: ConfigMap
         |  metadata:
         |    name: hello-kubernetes
         |    namespace: hello
+        |    labels:
+        |      md.spinnaker.io/plugin: k8s
         |  data:
         |    replicas: 123
         |    game.properties: food=ramen
@@ -83,7 +85,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: "v1"
         |  kind: NotConfigMap
@@ -100,7 +102,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: "apps/v1"
         |  kind: Deployment
@@ -115,6 +117,38 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |      metadata:
         |        labels:
         |          app: hello-kubernetes
+        |      spec:
+        |        containers:
+        |        - name: hello-kubernetes
+        |          image: nimak/helloworld:0.1
+        |          ports:
+        |          - containerPort: 8080
+    """.trimMargin()
+
+    private val expectedYaml = """
+        |---
+        |locations:
+        |  account: my-k8s-west-account
+        |  regions: []
+        |metadata:
+        |  application: fnord
+        |template:
+        |  apiVersion: "apps/v1"
+        |  kind: Deployment
+        |  metadata:
+        |    name: hello-kubernetes
+        |    labels:
+        |      md.spinnaker.io/plugin: k8s
+        |  spec:
+        |    replicas: REPLICA
+        |    selector:
+        |      matchLabels:
+        |        app: hello-kubernetes
+        |    template:
+        |      metadata:
+        |        labels:
+        |          app: hello-kubernetes
+        |          md.spinnaker.io/plugin: k8s
         |      spec:
         |        containers:
         |        - name: hello-kubernetes
@@ -142,13 +176,13 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     "name" to "hello-kubernetes",
                     "annotations" to mapOf(
                         K8S_LAST_APPLIED_CONFIG to jacksonObjectMapper().writeValueAsString(k8sManifest)
-                    )
+                    ),
                 ),
                 spec = specMap
             ),
             metrics = emptyList(),
             moniker = null,
-            name = "test",
+            name = "fnord",
             status = emptyMap(),
             warnings = emptyList()
         )
@@ -240,7 +274,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         }
 
         context("the K8s resource has been created"){
-            val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+            val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
             var resourceModel = resourceModel(resourceSpec.template, mutableMapOf("image" to "teset/test:0.1"))
             before {
                 coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel
@@ -300,7 +334,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         }
 
         context("the K8s resource has been updated") {
-            val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 2"), K8sResourceSpec::class.java)
+            val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 2"), K8sResourceSpec::class.java)
             before {
                 coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                     resourceSpec.template
@@ -336,7 +370,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
 
         context ("Diffing resources") {
             context("when there is an annotation diff") {
-                val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+                val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
                 context("when it is one of the expected annotations") {
                     before{
                         (resourceSpec.template.metadata)["annotations"] = mutableMapOf("artifact.spinnaker.io/location" to "something")
@@ -372,10 +406,10 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
             }
 
             context("when there is an label diff") {
-                val resourceSpec = yamlMapper.readValue(yaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
+                val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
                 context("when it is one of the expected labels") {
                     before{
-                        (resourceSpec.template.metadata)["labels"] = mutableMapOf("app.kubernetes.io/name" to "something")
+                        ((resourceSpec.template.metadata)["labels"] as MutableMap<String, String>)["app.kubernetes.io/name"] to "something"
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -439,7 +473,8 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     expectThat(metadata)
                         .hasEntry("name", "hello-kubernetes")
                         .hasEntry("namespace", "hello")
-                        .hasSize(2)
+                        .hasEntry("labels", mutableMapOf(MANAGED_DELIVERY_APP_LABEL to "k8s"))
+                        .hasSize(3)
                 }
             }
         }

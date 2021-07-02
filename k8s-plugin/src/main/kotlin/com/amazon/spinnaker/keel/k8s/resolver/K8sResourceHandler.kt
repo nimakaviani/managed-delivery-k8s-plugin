@@ -40,7 +40,8 @@ class K8sResourceHandler (
                 }
             }
         }
-        return resource.spec.template
+        // sending it to the super class for common labels and annotations to be added
+        return super.toResolvedType(resource)
     }
 
     override suspend fun current(resource: Resource<K8sResourceSpec>): K8sObjectManifest? =

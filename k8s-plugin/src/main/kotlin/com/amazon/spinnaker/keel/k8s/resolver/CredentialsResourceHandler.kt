@@ -79,17 +79,27 @@ class CredentialsResourceHandler(
             }
         }
         // setting strategy.spinnaker.io/versioned is needed to avoid creating secrets with versioned names e.g. testing1-v000
-        return K8sCredentialManifest(
-            SECRET_API_V1,
-            SECRET,
-            mutableMapOf(
-                "namespace" to resource.spec.namespace,
-                "name" to "${credType}-${clouddriverAccountName}",
-                "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
-            ),
-            null,
-            data.toK8sBlob() as K8sBlob?
+        val copyResource = Resource(
+            kind = resource.kind,
+            metadata = resource.metadata,
+            spec = CredentialsResourceSpec(
+               locations = resource.spec.locations,
+               metadata  = resource.spec.metadata,
+               template = K8sCredentialManifest(
+                    SECRET_API_V1,
+                    SECRET,
+                    mutableMapOf(
+                        "namespace" to resource.spec.namespace,
+                        "name" to "${credType}-${clouddriverAccountName}",
+                        "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
+                    ),
+                    null,
+                    data.toK8sBlob() as K8sBlob?
+                )
+            )
         )
+        // sending it to the super class for common labels and annotations to be added
+        return super.toResolvedType(copyResource)
     }
 
     override suspend fun current(resource: Resource<CredentialsResourceSpec>): K8sCredentialManifest? =

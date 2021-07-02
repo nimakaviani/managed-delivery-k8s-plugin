@@ -5,7 +5,7 @@ import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
 class HelmResourceSpec (
-    val chart: ReferenceProvider?,
+    val chart: ReferenceProvider? = null,
     override val metadata: Map<String, String>,
     override val template: K8sObjectManifest,
     override val locations: SimpleLocations,

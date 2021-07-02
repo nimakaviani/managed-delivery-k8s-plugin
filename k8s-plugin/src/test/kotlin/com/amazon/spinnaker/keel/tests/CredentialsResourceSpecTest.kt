@@ -26,7 +26,7 @@ class CredentialsResourceSpecTest : JUnit5Minutests {
                         |  account: my-k8s-west-account
                         |  regions: []
                         |metadata:
-                        |  application: test
+                        |  application: fnord
                         |template:
                         |  metadata:
                         |    namespace: default

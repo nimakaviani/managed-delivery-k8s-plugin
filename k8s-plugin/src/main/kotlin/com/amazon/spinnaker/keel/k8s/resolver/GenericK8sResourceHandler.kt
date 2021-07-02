@@ -20,6 +20,7 @@ import com.netflix.spinnaker.keel.orca.OrcaService
 import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import retrofit2.HttpException
+import java.util.*
 
 abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest>(
     open val cloudDriverK8sService: CloudDriverK8sService,
@@ -36,6 +37,20 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
 
     override suspend fun toResolvedType(resource: Resource<S>): R =
         with(resource.spec) {
+            this.template!!.metadata[LABELS].let {
+                val labels : MutableMap<String, String> = if (it == null) {
+                    mutableMapOf<String, String>();
+                } else {
+                    it as MutableMap<String, String>
+                }
+
+                labels[MANAGED_DELIVERY_APP_LABEL]  = MANAGED_DELIVERY_K8S_PLUGIN
+                this.template!!.metadata[LABELS] = labels
+                (this.template as K8sManifest).spec?.let{ spec ->
+                    augmentWithLabels(spec, listOf(Pair(MANAGED_DELIVERY_APP_LABEL, MANAGED_DELIVERY_K8S_PLUGIN)))
+                }
+            }
+
             return (this.template as R)
         }
 
@@ -162,7 +177,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
         return r
     }
 
-    protected fun clean(r: MutableMap<String, MutableMap<String, Any?>>, attr: String) {
+    private fun clean(r: MutableMap<String, MutableMap<String, Any?>>, attr: String) {
         arrayOf(
             "artifact.spinnaker.io/location",
             "artifact.spinnaker.io/name",
@@ -175,6 +190,28 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
         ).forEach {
             r[attr]?.remove(it)
             r[attr]?.let { if (it.size == 0) r.remove(attr) }
+        }
+    }
+
+    private fun augmentWithLabels(spec: MutableMap<String, Any?>, extraLabels: List<Pair<String, String>>) {
+        spec["template"]?.let { tpl ->
+            val template = tpl as MutableMap<String, Any?>? ?: return@let
+            template["metadata"]?.let { md ->
+                val metadata = md as MutableMap<String, Any?>? ?: return@let
+                var labels = mutableMapOf<String, String>()
+                metadata["labels"]?.let {
+                    labels = it as MutableMap<String, String>
+                }
+                extraLabels.forEach { pair ->
+                    labels[pair.first] = pair.second
+                }
+                metadata["labels"] = labels
+            }
+            template["spec"]?.let {
+                val nested = tpl as MutableMap<String, Any?>? ?: return@let
+                augmentWithLabels(spec = nested, extraLabels = extraLabels)
+            }
+            return@let
         }
     }
 }

@@ -15,7 +15,9 @@ const val K8S_PROVIDER = "kubernetes"
 const val SOURCE_TYPE = "text"
 
 const val K8S_LAST_APPLIED_CONFIG: String = "kubectl.kubernetes.io/last-applied-configuration"
-const val KEEL_MONIKER_APP: String = "moniker.spinnaker.io/application"
+const val KEEL_MONIKER_APP_ANNOTATION: String = "moniker.spinnaker.io/application"
+const val MANAGED_DELIVERY_APP_LABEL = "md.spinnaker.io/plugin"
+const val MANAGED_DELIVERY_K8S_PLUGIN = "k8s"
 
 const val NAME: String = "name"
 const val NAMESPACE: String = "namespace"
