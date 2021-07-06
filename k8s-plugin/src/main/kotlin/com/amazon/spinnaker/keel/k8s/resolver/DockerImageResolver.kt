@@ -113,7 +113,7 @@ class DockerImageResolver(
             val newContainer = DigestProvider(
                 organization = "",
                 image = dockerImage.artifact.reference,
-                digest = dockerImage.digest
+                digest = dockerImage.digest ?: ""
             )
             logger.info("resolving $artifact to ${dockerImage.artifact.reference}")
             updatedResource = updateContainerInSpec(updatedResource, newContainer, artifact, tag)

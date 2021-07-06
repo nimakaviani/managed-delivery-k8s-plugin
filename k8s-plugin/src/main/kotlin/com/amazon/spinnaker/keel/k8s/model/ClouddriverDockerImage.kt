@@ -3,7 +3,7 @@ package com.amazon.spinnaker.keel.k8s.model
 data class ClouddriverDockerImage(
     val account: String,
     val artifact: Artifact,
-    val digest: String,
+    val digest: String?,
     val registry: String,
     val repository: String,
     val tag: String
