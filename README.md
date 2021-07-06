@@ -431,7 +431,7 @@ an application named `spinmd`, your created Kubernetes resources for this applic
 The combination should allow you to query for application resources created by the plugin:
 
 ```bash
-kubectl get all -l md.spinnaker.io/plugin=k8s,app.kubernetes.io/name=spinmd
+kubectl get all -l md.spinnaker.io/plugin=k8s,app.kubernetes.io/name=[YOUR-APP-NAME]
 ```
 
 ## Build and Test
