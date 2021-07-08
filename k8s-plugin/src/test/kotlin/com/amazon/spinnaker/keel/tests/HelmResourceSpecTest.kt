@@ -29,7 +29,7 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                         |  account: my-k8s-west-account
                         |  regions: []
                         |metadata:
-                        |  application: test
+                        |  application: fnord
                         |template:
                         |  apiVersion: source.toolkit.fluxcd.io/v1beta1
                         |  kind: HelmRepository
@@ -59,7 +59,7 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
 
                 test("stores correct application metadata from the spec") {
                     expectThat(this)
-                        .get { metadata["application"] }.isEqualTo("test")
+                        .get { metadata["application"] }.isEqualTo("fnord")
                 }
 
                 test("has chart information properly stored") {

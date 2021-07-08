@@ -26,7 +26,7 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
                         |  account: my-k8s-west-account
                         |  regions: []
                         |metadata:
-                        |  application: test
+                        |  application: fnord
                         |template:
                         |  apiVersion: "apps/v1"
                         |  kind: Deployment
@@ -78,7 +78,7 @@ internal object K8sResourceSpecTests : JUnit5Minutests {
 
                 test("stores correct application metadata from the spec") {
                     expectThat(this)
-                        .get { metadata["application"] }.isEqualTo("test")
+                        .get { metadata["application"] }.isEqualTo("fnord")
                 }
             }
         }

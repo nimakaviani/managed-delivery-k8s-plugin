@@ -60,7 +60,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  metadata:
         |    name: hello-kubernetes
@@ -74,7 +74,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
         |  kind: HelmRelease
@@ -90,7 +90,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: something
         |  kind: HelmRelease
@@ -106,12 +106,14 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  account: my-k8s-west-account
         |  regions: []
         |metadata:
-        |  application: test
+        |  application: fnord
         |template:
         |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
         |  kind: HelmRelease
         |  metadata:
         |    name: hello-kubernetes
+        |    labels:
+        |      md.spinnaker.io/plugin: k8s
         |  spec:
         |    url: some-url
     """.trimMargin()
@@ -137,7 +139,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
             ),
             metrics = emptyList(),
             moniker = null,
-            name = "test",
+            name = "fnord",
             status = emptyMap(),
             warnings = emptyList()
         )

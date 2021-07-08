@@ -11,11 +11,12 @@ val HELM_RESOURCE_SPEC_V1 = kind <HelmResourceSpec>("k8s/helm@v1")
 val KUSTOMIZE_RESOURCE_SPEC_V1 = kind <KustomizeResourceSpec>("k8s/kustomize@v1")
 val CREDENTIALS_RESOURCE_SPEC_V1 = kind <CredentialsResourceSpec>("k8s/credential@v1")
 
+val MANAGED_DELIVERY_PLUGIN_LABELS = listOf(Pair("md.spinnaker.io/plugin", "k8s"))
+
 const val K8S_PROVIDER = "kubernetes"
 const val SOURCE_TYPE = "text"
 
 const val K8S_LAST_APPLIED_CONFIG: String = "kubectl.kubernetes.io/last-applied-configuration"
-const val KEEL_MONIKER_APP: String = "moniker.spinnaker.io/application"
 
 const val NAME: String = "name"
 const val NAMESPACE: String = "namespace"
