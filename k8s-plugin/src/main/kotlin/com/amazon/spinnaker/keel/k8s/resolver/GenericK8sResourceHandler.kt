@@ -44,10 +44,12 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
                     it as MutableMap<String, String>
                 }
 
-                labels[MANAGED_DELIVERY_APP_LABEL]  = MANAGED_DELIVERY_K8S_PLUGIN
+                MANAGED_DELIVERY_PLUGIN_LABELS.forEach{ label ->
+                    labels[label.first]  = label.second
+                }
                 this.template!!.metadata[LABELS] = labels
                 (this.template as K8sManifest).spec?.let{ spec ->
-                    augmentWithLabels(spec, listOf(Pair(MANAGED_DELIVERY_APP_LABEL, MANAGED_DELIVERY_K8S_PLUGIN)))
+                    augmentWithLabels(spec, MANAGED_DELIVERY_PLUGIN_LABELS)
                 }
             }
 

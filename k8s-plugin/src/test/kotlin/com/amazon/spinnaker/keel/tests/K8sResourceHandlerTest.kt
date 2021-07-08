@@ -473,7 +473,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     expectThat(metadata)
                         .hasEntry("name", "hello-kubernetes")
                         .hasEntry("namespace", "hello")
-                        .hasEntry("labels", mutableMapOf(MANAGED_DELIVERY_APP_LABEL to "k8s"))
+                        .hasEntry("labels", mutableMapOf("md.spinnaker.io/plugin" to "k8s"))
                         .hasSize(3)
                 }
             }
