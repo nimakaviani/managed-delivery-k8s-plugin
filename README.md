@@ -419,9 +419,21 @@ where the value for `account:` corresponds to the name of the account in your Cl
 the `type` of the credential is set to `git`. This in turn will create a secret named `git-sample-repo` 
 (prepending the credential type to the account name)
 in the `default` namespace, which can be used in your Flux specification of HELM or Kustomize resources.
+
+All secrets generated from clouddriver account information are tagged with the following two tags:
+
+- `account.clouddriver.spinnaker.io/name=[CLOUDDRIVER-ACCOUNT-NAME]`
+- `account.clouddriver.spinnaker.io/type=[CLOUDDRIVER-ACCOUNT-TYPE]` (e.g. `git`)
+
+Generated secrets can be discovered like the following as an example:
+
+```
+kubectl get secrets -l account.clouddriver.spinnaker.io/type=git
+```
+
 </details>
 
-### Discovering Deployed Resources
+### Discovering Resources
 
 - All kubernetes resources deployed via the plugin are labeled with the label `md.spinnaker.io/plugin: k8s`.
 - Spinnaker's clouddriver labels deployed resources with the name of the application, e.g. for

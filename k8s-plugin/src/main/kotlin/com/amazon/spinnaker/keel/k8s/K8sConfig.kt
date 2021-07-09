@@ -12,6 +12,8 @@ val KUSTOMIZE_RESOURCE_SPEC_V1 = kind <KustomizeResourceSpec>("k8s/kustomize@v1"
 val CREDENTIALS_RESOURCE_SPEC_V1 = kind <CredentialsResourceSpec>("k8s/credential@v1")
 
 val MANAGED_DELIVERY_PLUGIN_LABELS = listOf(Pair("md.spinnaker.io/plugin", "k8s"))
+const val CLOUDDRIVER_ACCOUNT_NAME_LABEL = "account.clouddriver.spinnaker.io/name"
+const val CLOUDDRIVER_ACCOUNT_TYPE_LABEL = "account.clouddriver.spinnaker.io/type"
 
 const val K8S_PROVIDER = "kubernetes"
 const val SOURCE_TYPE = "text"
