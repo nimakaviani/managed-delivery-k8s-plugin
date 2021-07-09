@@ -91,7 +91,11 @@ class CredentialsResourceHandler(
                     mutableMapOf(
                         "namespace" to resource.spec.namespace,
                         "name" to "${credType}-${clouddriverAccountName}",
-                        "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false")
+                        "annotations" to mapOf("strategy.spinnaker.io/versioned" to "false"),
+                        "labels" to mapOf(
+                            CLOUDDRIVER_ACCOUNT_NAME_LABEL to clouddriverAccountName,
+                            CLOUDDRIVER_ACCOUNT_TYPE_LABEL to credType
+                        )
                     ),
                     null,
                     data.toK8sBlob() as K8sBlob?

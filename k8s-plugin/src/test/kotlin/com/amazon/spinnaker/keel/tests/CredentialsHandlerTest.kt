@@ -180,6 +180,11 @@ class CredentialsHandlerTest : JUnit5Minutests {
                     expectThat(result.metadata) {
                         hasEntry("name", "git-test-git-repo")
                         hasEntry("namespace", "test-ns")
+                        hasEntry("labels", mutableMapOf(
+                            "account.clouddriver.spinnaker.io/name" to "test-git-repo",
+                            "account.clouddriver.spinnaker.io/type" to "git",
+                            "md.spinnaker.io/plugin" to "k8s"
+                        ))
                     }
                     expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                     expectThat(
