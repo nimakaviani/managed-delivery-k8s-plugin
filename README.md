@@ -48,6 +48,22 @@ spinnaker:
           id: awsManagedDeliveryK8sPluginRepo
           url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
+### Igor plugin configuration
+Igor plugin is optional. Only needed when you would like to deploy K8s resources through Kustomize files in GitHub.
+
+The access token provided in the config file is expected to have READ access to repositories defined 
+```yaml
+github:
+  baseUrl: "https://api.github.com"
+  accessToken: TOKEN
+git:
+  repositories: 
+    - name: managed-delivery-k8s-plugin
+      type: github
+      project: nimakaviani
+      url: https://github.com/nimakaviani/managed-delivery-k8s-plugin.git
+```
+
 ## Delivery Config Manifest
 
 By defining the _Delivery Config Manifest_, you can control the deployment and progression of resources to different

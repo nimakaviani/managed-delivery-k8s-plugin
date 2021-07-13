@@ -7,7 +7,7 @@ pluginManagement {
 }
 
 rootProject.name = 'managed-delivery-k8s-plugin'
-include "k8s-plugin", "k8s-plugin-clouddriver", "k8s-plugin-deck"
+include "k8s-plugin", "k8s-plugin-clouddriver", "k8s-plugin-deck", "k8s-plugin-igor"
 
 def setBuildFile(project) {
     project.buildFileName = "${project.name}.gradle"
