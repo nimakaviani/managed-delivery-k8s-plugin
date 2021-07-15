@@ -46,6 +46,7 @@ open class K8sManifest(
     open var spec: K8sBlob?,
     open var data: K8sBlob? = null,
     open var status: Status? = null,
+    open var items: MutableList<K8sManifest>? = null
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
     open fun name(): String = throw Exception("not implemented")
@@ -88,6 +89,7 @@ data class K8sObjectManifest(
     override var spec: K8sBlob?,
     override var data: K8sBlob? = null,
     override var status: Status? = null,
+    override var items: MutableList<K8sManifest>? = null
 ) : K8sManifest(apiVersion, kind, metadata, spec, data, status) {
     override fun name(): String = metadata[NAME] as String
 }

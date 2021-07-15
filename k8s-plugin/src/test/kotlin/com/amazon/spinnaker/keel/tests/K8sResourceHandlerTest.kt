@@ -79,6 +79,37 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
         |    game.properties: food=ramen
     """.trimMargin()
 
+    private val listYaml = """
+        |---
+        |locations:
+        |  account: my-k8s-west-account
+        |  regions: []
+        |metadata:
+        |  application: fnord
+        |template:
+        |  apiVersion: "v1"
+        |  kind: List
+        |  metadata:
+        |    name: hello-kubernetes
+        |    namespace: hello
+        |  items:
+        |  - apiVersion: v1
+        |    kind: Service
+        |    type: ClusterIP
+        |    metadata:
+        |      name: hello-kubernetes
+        |      labels:
+        |        labelKey: labelValue
+        |    spec:
+        |      not: used
+        |  - apiVersion: "apps/v1"
+        |    kind: Deployment
+        |    metadata:
+        |      name: hello-kubernetes
+        |    spec:
+        |      not: used
+    """.trimMargin()
+
     private val dataYaml = """
         |---
         |locations:
@@ -409,7 +440,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
                 context("when it is one of the expected labels") {
                     before{
-                        ((resourceSpec.template.metadata)["labels"] as MutableMap<String, String>)["app.kubernetes.io/name"] to "something"
+                        ((resourceSpec.template.metadata)[LABELS] as MutableMap<String, String>)["app.kubernetes.io/name"] to "something"
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -425,7 +456,7 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 }
                 context("when it is not one of the expected labels") {
                     before{
-                        (resourceSpec.template.metadata)["labels"] = mutableMapOf("random" to "something")
+                        (resourceSpec.template.metadata)[LABELS] = mutableMapOf("random" to "something")
                         coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } returns resourceModel(
                             resourceSpec.template
                         )
@@ -473,7 +504,8 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                     expectThat(metadata)
                         .hasEntry("name", "hello-kubernetes")
                         .hasEntry("namespace", "hello")
-                        .hasEntry("labels", mutableMapOf("md.spinnaker.io/plugin" to "k8s"))
+                        .hasEntry(LABELS, mutableMapOf(
+                            MANAGED_DELIVERY_PLUGIN_LABELS.first().first to MANAGED_DELIVERY_PLUGIN_LABELS.first().second))
                         .hasSize(3)
                 }
             }
@@ -556,6 +588,29 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                         val annotations = resources.first().metadata["annotations"] as Map<String, Any>
                         expectThat(annotations["strategy.spinnaker.io/versioned"]).isEqualTo("false")
                         expectThat(annotations["dont-change-me"]).isEqualTo("please")
+                    }
+                }
+            }
+        }
+
+        context("when spec with items are used") {
+            val current = yamlMapper.readValue(listYaml, K8sResourceSpec::class.java)
+            val currentSpec = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = current
+            )
+
+            test("each item should have the plugin labels") {
+                runBlocking {
+                    val spec = desired(currentSpec)
+                    expectThat(spec.items?.size).isEqualTo(2)
+                    spec.items?.map {
+                        val labels = it.metadata[LABELS] as MutableMap<String, String>
+                        if (it.kind == "Service") {
+                            expectThat(labels).hasEntry("labelKey", "labelValue")
+                        }
+                        expectThat(labels)
+                            .hasEntry(MANAGED_DELIVERY_PLUGIN_LABELS.first().first, MANAGED_DELIVERY_PLUGIN_LABELS.first().second)
                     }
                 }
             }
