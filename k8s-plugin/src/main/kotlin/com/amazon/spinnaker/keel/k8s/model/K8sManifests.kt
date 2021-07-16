@@ -46,6 +46,7 @@ open class K8sManifest(
     open var spec: K8sBlob?,
     open var data: K8sBlob? = null,
     open var status: Status? = null,
+    // TODO do we want to fully support this?
     open var items: MutableList<K8sManifest>? = null
 ) {
     open fun namespace(): String = (metadata[NAMESPACE] ?: NAMESPACE_DEFAULT) as String
