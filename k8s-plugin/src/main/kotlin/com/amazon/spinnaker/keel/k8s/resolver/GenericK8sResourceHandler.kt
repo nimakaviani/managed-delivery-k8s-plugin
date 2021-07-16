@@ -35,26 +35,18 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     override val supportedKind: SupportedKind<S>
         get() = TODO("Not yet implemented")
 
-    override suspend fun toResolvedType(resource: Resource<S>): R =
-        with(resource.spec) {
-            this.template!!.metadata[LABELS].let {
-                val labels : MutableMap<String, String> = if (it == null) {
-                    mutableMapOf<String, String>();
-                } else {
-                    it as MutableMap<String, String>
-                }
-
-                MANAGED_DELIVERY_PLUGIN_LABELS.forEach{ label ->
-                    labels[label.first]  = label.second
-                }
-                this.template!!.metadata[LABELS] = labels
-                (this.template as K8sManifest).spec?.let{ spec ->
-                    augmentWithLabels(spec, MANAGED_DELIVERY_PLUGIN_LABELS)
-                }
-            }
-
-            return (this.template as R)
+    @Suppress("UNCHECKED_CAST")
+    override suspend fun toResolvedType(resource: Resource<S>): R {
+        resource.spec.template!!.items?.let {
+            val manifests = it.map{manifest -> labelManifest(manifest)}.toMutableList()
+            resource.spec.template!!.items = manifests
+            return resource.spec.template as R
         }
+
+        with(resource.spec) {
+            return labelManifest(this.template!!) as R
+        }
+    }
 
     open suspend fun CloudDriverK8sService.getK8sResource(
         r: Resource<S>,
@@ -195,6 +187,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun augmentWithLabels(spec: MutableMap<String, Any?>, extraLabels: List<Pair<String, String>>) {
         spec["template"]?.let { tpl ->
             val template = tpl as MutableMap<String, Any?>? ?: return@let
@@ -215,5 +208,24 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
             }
             return@let
         }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun labelManifest(manifest: K8sManifest): K8sManifest {
+        manifest.metadata[LABELS].let {
+            val labels: MutableMap<String, String> = if (it == null) {
+                mutableMapOf()
+            } else {
+                it as MutableMap<String, String>
+            }
+            MANAGED_DELIVERY_PLUGIN_LABELS.forEach { label ->
+                labels[label.first] = label.second
+            }
+            manifest.metadata[LABELS] = labels
+            manifest.spec?.let { spec ->
+                augmentWithLabels(spec, MANAGED_DELIVERY_PLUGIN_LABELS)
+            }
+        }
+        return manifest
     }
 }
