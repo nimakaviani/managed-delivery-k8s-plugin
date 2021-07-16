@@ -35,6 +35,7 @@ dependencies {
     compileOnly (group: 'io.spinnaker.keel', name: 'keel-artifact', version: "${keelVersion}")
     compileOnly (group: 'io.spinnaker.keel', name: 'keel-retrofit', version: "${keelVersion}")
     compileOnly (group: 'io.spinnaker.keel', name: 'keel-docker', version: "${keelVersion}")
+    compileOnly (group: 'io.spinnaker.keel', name: 'keel-igor', version: "${keelVersion}")
     compileOnly (group: 'org.springframework', name: 'spring-context', version: '5.2.1.RELEASE')
     compileOnly (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.12.1')
 
