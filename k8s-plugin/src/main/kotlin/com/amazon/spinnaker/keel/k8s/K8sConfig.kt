@@ -38,3 +38,10 @@ const val FLUX_HELM_KIND: String = "HelmRelease"
 const val FLUX_KUSTOMIZE_API_VERSION: String = "kustomize.toolkit.fluxcd.io/v1beta1"
 const val FLUX_KUSTOMIZE_KIND: String = "Kustomization"
 const val FLUX_SECRETS_TOKEN_USERNAME: String = "token-user"
+
+enum class FluxSupportedSourceType {
+    GIT { override fun fluxKind(): String = "GitRepository" },
+    HELM {override fun fluxKind(): String = "HelmRepository"},
+    BUCKET {override fun fluxKind(): String = "Bucket"};
+    abstract fun fluxKind(): String
+}
