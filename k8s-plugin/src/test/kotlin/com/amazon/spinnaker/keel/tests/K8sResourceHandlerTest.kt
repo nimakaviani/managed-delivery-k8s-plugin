@@ -618,9 +618,8 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val spec = desired(currentSpec)
                     expectThat(spec.items?.size).isEqualTo(2)
-                    spec.items?.forEach {
+                    spec.items?.map {
                         val labels = it.metadata[LABELS] as MutableMap<String, String>
-                        // ensure existing label is preserved for the Service kind
                         if (it.kind == "Service") {
                             expectThat(labels).hasEntry("labelKey", "labelValue")
                         }

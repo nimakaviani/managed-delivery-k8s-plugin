@@ -33,6 +33,7 @@ data class GitRepoArtifact(
     override val type = FluxSupportedSourceType.GIT.name.toLowerCase()
     override val name = "$type-$gitType-$project-$repoName"
 
+    val kind = FluxSupportedSourceType.GIT.fluxKind()
     @JsonIgnore
     override val statuses: Set<ArtifactStatus> = emptySet()
 

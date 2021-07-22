@@ -44,6 +44,7 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                         |  regions: []
                         |metadata:
                         |  application: fnord
+                        |artifactRef: some-ref
                         |template:
                         |  apiVersion: source.toolkit.fluxcd.io/v1beta1
                         |  kind: HelmRepository

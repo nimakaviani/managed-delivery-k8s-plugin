@@ -15,66 +15,134 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
 import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
-import com.amazon.spinnaker.keel.k8s.model.KustomizeResourceSpec
+import com.amazon.spinnaker.keel.k8s.exception.NoVersionAvailable
+import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
+import com.amazon.spinnaker.keel.k8s.model.KustomizeResourceSpec
+import com.amazon.spinnaker.keel.k8s.resolver.FluxManifestUtil.generateGitRepoManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
+import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
+import com.netflix.spinnaker.keel.persistence.KeelRepository
+import com.netflix.spinnaker.keel.persistence.NoMatchingArtifactException
+import kotlinx.coroutines.coroutineScope
 
 class KustomizeResourceHandler(
     override val cloudDriverK8sService: CloudDriverK8sService,
     override val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
     orcaService: OrcaService,
-    override val resolvers: List<Resolver<*>>
+    override val resolvers: List<Resolver<*>>,
+    val repository: KeelRepository
 ) : GenericK8sResourceHandler<KustomizeResourceSpec, K8sObjectManifest>(
     cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers
 ) {
     override val supportedKind = KUSTOMIZE_RESOURCE_SPEC_V1
 
     public override suspend fun toResolvedType(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest {
-
-        if (resource.spec.template.apiVersion == FLUX_KUSTOMIZE_API_VERSION && resource.spec.template.kind == FLUX_KUSTOMIZE_KIND) {
-            return super.toResolvedType(resource)
+        log.debug("attempting to resolve resource for git")
+        if (resource.spec.template.kind != FLUX_KUSTOMIZE_KIND || resource.spec.template.apiVersion != FLUX_KUSTOMIZE_API_VERSION) {
+            throw MisconfiguredObjectException(
+                "incorrect kind or api version supplied. supplied: ${resource.spec.template.kind} + ${resource.spec.template.apiVersion}" +
+                        " supported: $FLUX_KUSTOMIZE_KIND + $FLUX_KUSTOMIZE_API_VERSION"
+            )
         }
 
-        // verify if passed in values are right
-        try {
-            require(resource.spec.template.apiVersion.isNullOrEmpty()) {"${resource.spec.template.apiVersion} doesn't match $FLUX_KUSTOMIZE_API_VERSION"}
-            require(resource.spec.template.kind.isNullOrEmpty()) {"${resource.spec.template.kind} doesn't match $FLUX_KUSTOMIZE_KIND"}
-        }catch(e: Exception) {
-            throw MisconfiguredObjectException(e.message!!)
-        }
+        val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
 
-        resource.spec.template.apiVersion = FLUX_KUSTOMIZE_API_VERSION
-        resource.spec.template.kind = FLUX_KUSTOMIZE_KIND
+        val spec = resource.spec.template.spec
+        val environment = repository.environmentFor(resource.id)
+        val version = repository.latestVersionApprovedIn(
+            deliveryConfig, artifact, environment.name
+        ) ?: throw NoVersionAvailable(artifact.name, artifact.type)
+        log.debug("found deployable version: $version")
+        val artifactFromKeelRepository = repository.getArtifactVersion(artifact, version, null)
+        val sourceRef = mapOf(
+            "kind" to artifact.kind,
+            "name" to "${artifact.name}-${environment.name}",
+            "namespace" to artifact.namespace
+        )
+        spec?.set("sourceRef", sourceRef)
+
+        val repoUrl = artifactFromKeelRepository?.gitMetadata?.repo?.link
+            ?: throw InvalidArtifact("artifact version $version does not have repository URL in artifact metadata")
+        val gitRepoManifest = generateGitRepoManifest(artifact, repoUrl, version, environment.name)
+        resource.spec.template = toK8sList(
+            gitRepoManifest,
+            resource.spec.template,
+            generateCorrelationId(resource)
+        )
 
         // sending it to the super class for common labels and annotations to be added
         return super.toResolvedType(resource)
     }
 
-    override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
-        super.current(resource)?.let {
-            val lastAppliedConfig = (it.metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-            return cleanup(jacksonObjectMapper().readValue(lastAppliedConfig))
-        }
+    override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? {
+        val deployed = getK8sResource(resource)
+        // Check health of resources returned by clouddriver
+        notifyHealthAndArtifactDeployment(deployed, resource)
+        return deployed
+    }
 
+    @Suppress("UNCHECKED_CAST")
     override suspend fun getK8sResource(r: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
-    // defer to GenericK8sResourceHandler to get the resource
-        // from the k8s cluster
-        cloudDriverK8sService.getK8sResource(r)?.let {
-            it.manifest.to<K8sObjectManifest>()
+        coroutineScope {
+            val environment = repository.environmentFor(r.id)
+            val (artifact, _) = getArtifactAndConfig(r)
+            super.getFluxK8sResources(r, artifact, generateCorrelationId(r), environment.name)
         }
 
     override suspend fun actuationInProgress(resource: Resource<KustomizeResourceSpec>): Boolean =
         resource
             .spec.template.let {
-                orcaService.getCorrelatedExecutions(it.name()).isNotEmpty()
+                log.debug("Checking if actuation is in progress")
+                orcaService.getCorrelatedExecutions(generateCorrelationId(resource)).isNotEmpty()
             }
+
+    // Flux only supports Git as its SourceRepository
+    private fun getArtifactAndConfig(resource: Resource<KustomizeResourceSpec>): Pair<GitRepoArtifact, DeliveryConfig> {
+        val deliveryConfig = repository.deliveryConfigFor(resource.id)
+        resource.spec.artifactRef.let { tagRef ->
+            val artifact = deliveryConfig.artifacts.find {
+                log.trace("checking $it")
+                it.reference == tagRef && it.type.toUpperCase() == FluxSupportedSourceType.GIT.name
+            } as GitRepoArtifact? ?: throw NoMatchingArtifactException(
+                deliveryConfigName = deliveryConfig.name,
+                type = FluxSupportedSourceType.GIT.name.toLowerCase(),
+                reference = tagRef
+            )
+            log.debug("found GitRepoArtifact: $artifact")
+            return Pair(artifact, deliveryConfig)
+        }
+    }
+
+    override suspend fun upsert(
+        resource: Resource<KustomizeResourceSpec>,
+        diff: ResourceDiff<K8sObjectManifest>
+    ): List<Task> {
+        val spec = (diff.desired)
+        log.debug("checking for gitrepo kind in ${spec.items?.size} manifests")
+        spec.items?.forEach { manifest ->
+            if (manifest.kind == FluxSupportedSourceType.GIT.fluxKind()) {
+                val tag = find(manifest.spec ?: mutableMapOf(), "tag") as String?
+                log.debug("found tag: $tag")
+                tag?.let {
+                    log.info("Deploying Git artifact $it")
+                    notifyArtifactDeploying(resource, it)
+                }
+            }
+        }
+        return super.upsert(resource, diff)
+    }
+
+    private fun generateCorrelationId(resource: Resource<KustomizeResourceSpec>): String =
+        "$K8S_LIST-$FLUX_KUSTOMIZE_KIND-${resource.spec.template.name()}"
 }
