@@ -1,6 +1,6 @@
 package com.amazon.spinnaker.keel.k8s.model
 
-import com.amazon.spinnaker.keel.k8s.GIT
+import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
 import com.netflix.spinnaker.keel.api.artifacts.Commit
 import com.netflix.spinnaker.keel.api.artifacts.GitMetadata
 import com.netflix.spinnaker.keel.api.artifacts.PublishedArtifact
@@ -22,8 +22,8 @@ data class GitVersion(
 ) {
     fun toPublishedArtifact(reference: String): PublishedArtifact {
         return PublishedArtifact(
-            "$GIT-$type-$project-$name",
-            GIT,
+            "${FluxSupportedSourceType.GIT.name.toLowerCase()}-$type-$project-$name",
+            FluxSupportedSourceType.GIT.name.toLowerCase(),
             reference,
             version,
             metadata = mapOf(

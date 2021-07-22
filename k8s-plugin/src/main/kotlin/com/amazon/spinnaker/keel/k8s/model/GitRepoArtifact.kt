@@ -1,6 +1,6 @@
 package com.amazon.spinnaker.keel.k8s.model
 
-import com.amazon.spinnaker.keel.k8s.GIT
+import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
 import com.amazon.spinnaker.keel.k8s.artifactSupplier.GitRepoVersionSortingStrategy
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.netflix.spinnaker.keel.api.artifacts.*
@@ -16,8 +16,8 @@ data class GitRepoArtifact(
     val interval: String = "1m",
     val secretRef: String? = null,
 ) : DeliveryArtifact() {
-    override val name = "$GIT-$gitType-$project-$repoName"
-    override val type = GIT
+    override val type = FluxSupportedSourceType.GIT.name.toLowerCase()
+    override val name = "$type-$gitType-$project-$repoName"
 
     @JsonIgnore
     override val statuses: Set<ArtifactStatus> = emptySet()

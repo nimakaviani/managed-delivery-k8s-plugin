@@ -123,16 +123,14 @@ internal class GitArtifactSupplierTest : JUnit5Minutests {
                 ).isFalse()
                 expectThat(
                     shouldProcessArtifact(
-                        PublishedArtifact("", "GIT", "123", "1.2.3")
+                        PublishedArtifact("", "GIT", "123", "1.2.3", metadata = emptyMap())
                     )
                 ).isFalse()
                 expectThat(
                     shouldProcessArtifact(
-                        PublishedArtifact(
-                            "", "GIT", "123", "1.2.3", gitMetadata = GitMetadata(repo = Repo(link = ""), commit = "123")
-                        )
+                        PublishedArtifact("", "GIT", "123", "1.2.3", metadata = mapOf("not" to "relevant"))
                     )
-                ).isFalse()
+                ).isTrue()
             }
 
             test("should return latest artifact") {

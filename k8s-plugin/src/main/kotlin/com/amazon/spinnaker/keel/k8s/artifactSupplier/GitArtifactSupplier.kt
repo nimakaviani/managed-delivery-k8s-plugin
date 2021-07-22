@@ -1,6 +1,6 @@
 package com.amazon.spinnaker.keel.k8s.artifactSupplier
 
-import com.amazon.spinnaker.keel.k8s.GIT
+import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
 import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
 import com.amazon.spinnaker.keel.k8s.service.IgorArtifactServiceSupplier
 import com.netflix.spinnaker.keel.api.DeliveryConfig
@@ -18,9 +18,9 @@ class GitArtifactSupplier (
     private val igorArtifactService: IgorArtifactServiceSupplier
 ) : BaseArtifactSupplier<GitRepoArtifact, GitRepoVersionSortingStrategy>(artifactMetadataService) {
 
-    override val supportedArtifact = SupportedArtifact("git", GitRepoArtifact::class.java)
+    override val supportedArtifact = SupportedArtifact(FluxSupportedSourceType.GIT.name.toLowerCase(), GitRepoArtifact::class.java)
     override val supportedSortingStrategy =
-        SupportedSortingStrategy("git", GitRepoVersionSortingStrategy::class.java)
+        SupportedSortingStrategy(FluxSupportedSourceType.GIT.name.toLowerCase(), GitRepoVersionSortingStrategy::class.java)
 
     override fun getArtifactByVersion(artifact: DeliveryArtifact, version: String): PublishedArtifact? {
         return runBlocking {
@@ -48,8 +48,8 @@ class GitArtifactSupplier (
 
     override fun shouldProcessArtifact(artifact: PublishedArtifact): Boolean {
         return artifact.version.isNotBlank()
-                && artifact.type == GIT
-                && artifact.gitMetadata?.repo?.link?.isNotBlank() ?: false
+                && artifact.type.toUpperCase() == FluxSupportedSourceType.GIT.name
+                && artifact.metadata.isNotEmpty()
     }
 
     private fun findArtifactVersions(
