@@ -38,15 +38,15 @@ spinnaker:
 For Keel and Clouddriver, add the following to `clouddriver.yml` and `keel.yml` in the necessary [profile](https://spinnaker.io/reference/halyard/custom/#custom-profiles) to load the plugin.
 ```yaml
 spinnaker:
-    extensibility:
-      plugins:
-        aws.ManagedDeliveryK8sPlugin:
-          enabled: true
-          version: <<plugin release version>>
-      repositories:
-        awsManagedDeliveryK8sPluginRepo:
-          id: awsManagedDeliveryK8sPluginRepo
-          url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
+  extensibility:
+    plugins:
+      aws.ManagedDeliveryK8sPlugin:
+        enabled: true
+        version: <<plugin release version>>
+    repositories:
+      awsManagedDeliveryK8sPluginRepo:
+        id: awsManagedDeliveryK8sPluginRepo
+        url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
 ```
 ## Delivery Config Manifest
 
@@ -73,6 +73,236 @@ More details on the above can be found on the corresponding
 [Spinnaker Documentation](https://spinnaker.io/guides/user/managed-delivery/getting-started/) page.
 
 ## Deploying to Kubernetes
+
+### Supported Artifact types
+
+One biggest advantage of Spinnaker's managed delivery is its ability to track artifacts and enforce
+rollouts to resources it manages when artifacts change.
+
+<details>
+<summary>Deploying and Tracking Container Artifacts</summary>
+
+If you want to use this plugin to manage rollout of Docker container image artifacts to Kubernetes, first _CloudDriver_ needs to
+be configured to know about these Docker repositories.
+
+**IMPORTANT**: _The Managed Delivery K8s plugin currently only supports one `account` name to be
+associated with a resource. In order for the container registry account to be used in combination with the
+Kubernetes account (hence, two accounts for a resource), conventionally the container registry account should be named as
+follows `[K8-ACCOUNT-NAME]-registry`, where `[K8-ACCOUNT-NAME]` should be identical to the name used for the
+Kubernetes account._
+
+```yaml
+dockerRegistry:
+accounts:
+- address: https://index.docker.io # example registry
+  name: "[K8s-ACCOUNT-NAME]-registry"
+  repositories:
+  - example/service
+```
+
+To have managed delivery track artifacts, you first introduce them under the delivery config:
+
+```yaml
+artifacts:
+- name: example/service
+  type: docker
+  reference: my-docker-artifact
+  tagVersionStrategy: semver-tag
+```
+
+Then in your Kubernetes resource specification, you bind the artifact to the target resource using the
+artifact `reference`:
+
+```yaml
+resources:
+- kind: k8s/resource@v1
+  spec:
+    container:
+      reference: my-docker-artifact # indicates the use of artifact in the resource
+    metadata:
+      application: spinmd
+    template:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: my-app-deployment
+        namespace: default
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: hello
+        template:
+          metadata:
+            labels:
+              app: hello
+          spec:
+            containers:
+            - name: hello
+              image: my-docker-artifact # binds the artifact to the deployment
+              ports:
+              - containerPort: 8080
+```
+
+The same `reference` name is used for the artifact under `container.reference` in the Kubernetes
+resource `spec`, and also in place of the `image` name for the respective Kubernetes resource. This
+enabled the plugin to know exactly which artifact should be use with which resource and where, particularly
+where a given resource can deploy multiple artifacts (e.g. for Kubernetes deployments with sidecars or
+init containers).
+
+Multiple artifacts can be referenced in a given Kubernetes resource by listing all the artifact references in
+the `spec` and then referring to those references in the corresponding resource `image` reference:
+
+```yaml
+resources:
+- kind: k8s/resource@v1
+  spec:
+    container:
+      references:
+      - my-docker-artifact1
+      - my-docker-artifact2
+```
+
+</details>
+
+<details>
+<summary>Deploying and Tracking Git Artifacts</summary>
+
+Git repositories can be treated as Keel artifacts. This functionality is primarily meant to be used by the Kustomize (k8s/kustomize@v1)
+and Helm (k8s/helm@v1) resource types. 
+
+### Igor plugin configuration
+An example configuration is shown below. New repositories can be added by expanding the list under the `repositories` key.
+This configuration must be placed in your `igor.yml` or `igor-local.yml`
+```yaml
+spinnaker:
+  extensibility:
+    plugins:
+      aws.ManagedDeliveryK8sPlugin:
+        enabled: true
+        version: <<plugin release version>>
+    repositories:
+      awsManagedDeliveryK8sPluginRepo:
+        id: awsManagedDeliveryK8sPluginRepo
+        url: https://raw.githubusercontent.com/nimakaviani/managed-delivery-k8s-plugin/master/plugins.json
+git:
+  repositories:
+    - name: testRepo # name of the repository to monitor
+      type: github # type of managed git provider. Currently only GitHub is supported
+      project: testProject 
+      url: https://github.com/testProject/testRepo.git
+github:
+  baseUrl: "https://api.github.com"
+  accessToken: <TOKEN> # this token must have read access to reposiotires being monitored
+  commitDisplayLength: 8
+```
+
+### Delivery Config
+Once the Igor plugin is configured, a delivery config referencing the artifact can be specified.
+
+Notes:
+1. When Git artifact is used, Flux `GitRepository` resource are created per environment. e.g. if you have two environments
+named `dev` and `prod`, Flux resources `git-github-testProject-testRepo-dev` and `git-github-testProject-testRepo-prod` are created.
+2. Currently only Git source is supported. Flux's `HelmRepository` and `Bucket` kinds are not yet supported.
+3. `tagVersionStrategy` supports all standard strategies except custom regex.
+4. Individual resources created by Kustomize or Helm are not displayed in UI.
+
+Kustomize example:
+```yaml
+name: demo1
+application: fnord
+serviceAccount: keeltest-service-account
+artifacts:
+- type: git
+  reference: my-git-artifact
+  tagVersionStrategy: semver-tag # other strategies are supported. Custom regex is not supported.
+  repoName: testRepo
+  project: testProject
+  gitType: github
+  secretRef: git-repo # This is passed to Flux's GitRepositorySpec.SecretRef field
+environments:
+- name: test
+  locations:
+    account: deploy-experiments
+    regions: []
+  resources:
+  - kind: k8s/kustomize@v1
+    metadata:
+      serviceAccount: keeltest-service-account
+    spec:
+      artifactRef: my-git-artifact # Required
+      metadata:
+        application: fnord
+      template:
+        metadata:
+          name: fnord-test
+          namespace: flux-system
+        spec: # Fields below are passed to Flux's KustomizationSpec
+          interval: 1m
+          path: "./kustomize"
+          prune: true
+          targetNamespace: test
+```
+
+Helm example:
+```yaml
+name: demo1
+application: fnord
+serviceAccount: keeltest-service-account
+artifacts:
+- type: git
+  reference: my-git-artifact
+  tagVersionStrategy: semver-tag
+  repoName: testRepo
+  project: testProject
+  gitType: github
+  secretRef: git-repo # This is passed to Flux's GitRepositorySpec.SecretRef field
+environments:
+- name: test
+  locations:
+    account: deploy-experiments
+    regions: []
+  resources:
+  - kind: k8s/helm@v1
+    spec:
+      artifactRef: my-git-artifact # Required
+      metadata:
+        application: fnord
+      template:
+        metadata:
+          name: crossplane
+          namespace: flux-system
+        spec: # Fields below are passed to Flux's HelmReleaseSpec
+          releaseName: crossplane
+          targetNamespace: crossplane-system
+          chart:
+            spec:
+              chart: crossplane
+          interval: 1m
+          install:
+            remediation:
+              retries: 3
+```
+
+### Data flow
+
+For an existing artifact definition:
+1. The Igor plugin monitors given repositories for tag changes using Git provider's REST endpoints. Results are cached to Igor's configured Redis instance.
+2. If the Igor plugin detects a new tag is created, it notifies Keel with detailed information about this tag. e.g. author, sha, date, etc
+3. The keel plugin processes the event and store it as an artifact. 
+
+For a new artifact definition:
+1. The Keel plugin obtains the latest version of Git artifact through the REST endpoints exposed by the Igor plugin.
+2. Obtained information is processed and stored as an artifact.
+
+```
+        Moonitor            Pull and
+┌─────┐ with REST  ┌──────┐ Notify   ┌──────┐
+│ Git ◄────────────► Igor ◄──────────► Keel │
+└─────┘            └──────┘          └──────┘
+```
+
+</details>
 
 ### Supported Deployments
 
@@ -155,95 +385,6 @@ environments:
 
 if you need more Kubernetes resources to be deployed to this environment, you can expand the list of
 resources by adding more items to the list.
-</details>
-
-<details>
-<summary>Deploying and Tracking Container Artifacts</summary>
-
-One biggest advantage of Spinnaker's managed delivery is its ability to track artifacts and enforce
-rollouts to resources it manages when artifacts change.
-
-If you want to use this plugin to manage rollout of artifacts to Kubernetes, first _CloudDriver_ needs to
-be configured to know about these Docker repositories.
-
-**IMPORTANT**: _The Managed Delivery K8s plugin currently only supports one `account` name to be
-associated with a resource. In order for the container registry account to be used in combination with the
-Kubernetes account (hence, two accounts for a resource), conventionally the container registry account should be named as
-follows `[K8-ACCOUNT-NAME]-registry`, where `[K8-ACCOUNT-NAME]` should be identical to the name used for the
-Kubernetes account._
-
-```yaml
-dockerRegistry:
-accounts:
-- address: https://index.docker.io # example registry
-  name: "[K8s-ACCOUNT-NAME]-registry"
-  repositories:
-  - example/service
-```
-
-To have managed delivery track artifacts, you first introduce them under the delivery config:
-
-```yaml
-artifacts:
-- name: example/service
-  type: docker
-  reference: my-docker-artifact
-  tagVersionStrategy: semver-tag
-```
-
-Then in your Kubernetes resource specification, you bind the artifact to the target resource using the
-artifact `reference`:
-
-```yaml
-resources:
-- kind: k8s/resource@v1
-  spec:
-    container:
-      reference: my-docker-artifact # indicates the use of artifact in the resource
-    metadata:
-      application: spinmd
-    template:
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: my-app-deployment
-        namespace: default
-      spec:
-        replicas: 1
-        selector:
-          matchLabels:
-            app: hello
-        template:
-          metadata:
-            labels:
-              app: hello
-          spec:
-            containers:
-            - name: hello
-              image: my-docker-artifact # binds the artifact to the deployment
-              ports:
-              - containerPort: 8080
-```
-
-The same `reference` name is used for the artifact under `container.reference` in the Kubernetes
-resource `spec`, and also in place of the `image` name for the respective Kubernetes resource. This
-enabled the plugin to know exactly which artifact should be use with which resource and where, particularly
-where a given resource can deploy multiple artifacts (e.g. for Kubernetes deployments with sidecars or
-init containers).
-
-Multiple artifacts can be referenced in a given Kubernetes resource by listing all the artifact references in
-the `spec` and then referring to those references in the corresponding resource `image` reference:
-
-```yaml
-resources:
-- kind: k8s/resource@v1
-  spec:
-    container:
-      references:
-      - my-docker-artifact1
-      - my-docker-artifact2
-```
-
 </details>
 
 <details>
@@ -450,7 +591,7 @@ kubectl get all -l md.spinnaker.io/plugin=k8s,app.kubernetes.io/name=[YOUR-APP-N
 ## Build and Test
 
 ### Build and Install Locally
-run `./gradlew releaseBundle` and copy the created zip file to
+Run `./gradlew releaseBundle` and copy the created zip file, ` build/distributions/managed-delivery-k8s-plugin*.zip`, to
 `/opt/plugin/keel` or your plugin folder of choice. Make sure that the folder is
 writable for the plugin to be unzipped in. Enable the plugin by copying the snippet below to your `keel.yml` config file:
 
@@ -464,6 +605,7 @@ spinnaker:
     repositories: {}
     strict-plugin-loading: false
 ```
+
 
 ### Create Test Releases
 
@@ -493,4 +635,21 @@ spinnaker:
         url: https://$BUCKET.$REGION.amazonaws.com/plugins.json
 ```
 
+## Troubleshooting
 
+### Plugin loading
+#### Verify plugins are loaded
+If the plugin is loaded correctly, you will see log messages like the following:
+```
+Enabling spinnaker-official and spinnaker-community plugin repositories
+Plugin 'aws.ManagedDeliveryK8sPlugin@unspecified' resolved
+Start plugin 'aws.ManagedDeliveryK8sPlugin@unspecified'
+starting ManagedDelivery k8s plugin.
+```
+If the plugin is not loading, verify the following:
+1. Ensure the plugin root directory is readable and writable by the user that's running the service (keel, clouddriver, etc)
+The plugin root is determined by the `spinnaker.extensibility.plugins-root-path` field in your service yml file. 
+It defaults to the `plugins` directory in your current working directory. If using the Docker images, it defaults to
+`/opt/<SERVICE_NAME/plugins`. e.g. for Keel, it defaults to `/opt/keel/plugins/`
+   
+2. Ensure the plugin is enabled. Ensure the `spinnaker.extensibility.plugins.aws.ManagedDeliveryK8sPlugin.enabled` is set to `true`
