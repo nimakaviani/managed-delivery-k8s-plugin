@@ -36,8 +36,8 @@ object FluxManifestUtil {
         return K8sObjectManifest(
             FLUX_SOURCE_API_VERSION,
             artifact.kind,
-            girRepoManifestMetadata,
-            gitRepoManifestSpec
+            metadata = girRepoManifestMetadata,
+            spec = gitRepoManifestSpec
         )
     }
 }
