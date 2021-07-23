@@ -39,6 +39,7 @@ import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.orca.OrcaTaskLauncher
 import com.netflix.spinnaker.keel.orca.TaskRefResponse
 import com.netflix.spinnaker.keel.persistence.KeelRepository
+import com.netflix.spinnaker.keel.plugin.CannotResolveDesiredState
 import com.netflix.spinnaker.keel.test.resource
 import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
@@ -48,6 +49,7 @@ import okhttp3.ResponseBody
 import org.springframework.http.HttpStatus
 import retrofit2.HttpException
 import retrofit2.Response
+import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.assertions.*
 import java.util.*
@@ -282,6 +284,58 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 resolvers,
                 repository
             )
+        }
+
+        context("resource verification") {
+            test("missing spec results in error") {
+                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                badSpec.template.spec = null
+                expectCatching {
+                    toResolvedType(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = badSpec
+                        )
+                    )
+                }.failed().isA<CannotResolveDesiredState>()
+            }
+
+            test("missing template.spec.chart field results in error") {
+                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                badSpec.template.spec!!.remove("chart")
+                expectCatching {
+                    toResolvedType(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = badSpec
+                        )
+                    )
+                }.failed().isA<CannotResolveDesiredState>()
+            }
+            test("missing template.spec.chart.spec field results in error") {
+                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                (badSpec.template.spec!!["chart"] as MutableMap<String, Any>).remove("spec")
+                expectCatching {
+                    toResolvedType(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = badSpec
+                        )
+                    )
+                }.failed().isA<CannotResolveDesiredState>()
+            }
+            test("missing template.spec.chart.spec.chart field results in error") {
+                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                ((badSpec.template.spec!!["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, String>).remove("chart")
+                expectCatching {
+                    toResolvedType(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = badSpec
+                        )
+                    )
+                }.failed().isA<CannotResolveDesiredState>()
+            }
         }
 
         context("HelmRepository resource creation") {

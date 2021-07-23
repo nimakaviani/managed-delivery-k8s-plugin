@@ -14,10 +14,7 @@
 
 package com.amazon.spinnaker.keel.k8s.resolver
 
-import com.amazon.spinnaker.keel.k8s.FLUX_HELM_KIND
-import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
-import com.amazon.spinnaker.keel.k8s.HELM_RESOURCE_SPEC_V1
-import com.amazon.spinnaker.keel.k8s.K8S_LIST
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
 import com.amazon.spinnaker.keel.k8s.exception.NoVersionAvailable
 import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
@@ -37,6 +34,8 @@ import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import com.netflix.spinnaker.keel.persistence.NoMatchingArtifactException
+import com.netflix.spinnaker.keel.plugin.CannotResolveDesiredState
+import com.netflix.spinnaker.kork.exceptions.IntegrationException
 
 class HelmResourceHandler(
     override val cloudDriverK8sService: CloudDriverK8sService,
@@ -52,7 +51,7 @@ class HelmResourceHandler(
 
     @Suppress("UNCHECKED_CAST")
     public override suspend fun toResolvedType(resource: Resource<HelmResourceSpec>): K8sObjectManifest {
-
+        verifyChartResource(resource)
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
         val environment = repository.environmentFor(resource.id)
         val version = repository.latestVersionApprovedIn(
@@ -157,6 +156,22 @@ class HelmResourceHandler(
             log.info("Deploying Git artifact $it")
             notifyArtifactDeploying(resource, it)
         }
+    }
+
+    private fun verifyChartResource(resource: Resource<HelmResourceSpec>) {
+        resource.spec.template.spec?.let {
+            HELM_REQUIRED_FIELDS.forEach { reqField ->
+                if (!it.containsKey(reqField)) {
+                    throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.$reqField field is missing"))
+                }
+            }
+            (it["chart"] as Map<String, Any>)["spec"]?.let { specMap ->
+                val chartSpec = specMap as Map<String, Any>
+                if (!chartSpec.containsKey("chart")) {
+                    throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.chart.spec field is missing"))
+                }
+            } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.chart.spec field is missing"))
+        } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec field is missing")                                                                                             )
     }
 
     private fun generateCorrelationId(resource: Resource<HelmResourceSpec>): String =

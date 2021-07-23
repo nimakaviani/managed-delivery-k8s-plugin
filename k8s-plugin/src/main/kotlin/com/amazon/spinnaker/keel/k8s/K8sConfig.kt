@@ -61,3 +61,5 @@ enum class FluxSupportedSourceType {
     BUCKET {override fun fluxKind(): String = "Bucket"};
     abstract fun fluxKind(): String
 }
+
+val HELM_REQUIRED_FIELDS =  listOf("interval", "chart")
