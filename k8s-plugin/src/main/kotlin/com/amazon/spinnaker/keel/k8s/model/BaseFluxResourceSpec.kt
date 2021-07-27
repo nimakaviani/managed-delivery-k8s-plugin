@@ -5,11 +5,18 @@ import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
 import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
 
 abstract class BaseFluxResourceSpec:  ArtifactReferenceProvider, GenericK8sLocatable {
-    abstract val artifactRef: String
+    abstract val artifactSpec: ArtifactSpec
 
     override val artifactReference: String
-        get() = artifactRef
+        get() = artifactSpec.ref
 
     override val artifactType: ArtifactType
         get() = FluxSupportedSourceType.GIT.name.toLowerCase()
 }
+
+// allow overriding things specified in BaseFluxArtifact per resource
+data class ArtifactSpec(
+    val ref: String,
+    val namespace: String?,
+    val interval: String?
+)

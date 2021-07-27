@@ -95,7 +95,8 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
         metadata:
           serviceAccount: keeltest-service-account
         spec:
-          artifactRef: my-git-artifact
+          artifactSpec:
+            ref: my-git-artifact
           metadata:
             application: fnord
           template:
@@ -116,7 +117,8 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
       regions: []
     metadata:
       application: fnord
-    artifactRef: my-git-artifact
+    artifactSpec:
+      ref: my-git-artifact
     template:
       apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
       kind: Kustomization
@@ -138,7 +140,8 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
         |  regions: []
         |metadata:
         |  application: fnord
-        |artifactRef: nope
+        |artifactSpec:
+        |  ref: my-git-artifact
         |template:
         |  apiVersion: something
         |  kind: Kustomization
@@ -155,7 +158,8 @@ internal class KustomizeResourceHandlerTest : JUnit5Minutests {
         |  regions: []
         |metadata:
         |  application: fnord
-        |artifactRef: nope
+        |artifactSpec:
+        |  ref: my-git-artifact
         |template:
         |  apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
         |  kind: Kustomization

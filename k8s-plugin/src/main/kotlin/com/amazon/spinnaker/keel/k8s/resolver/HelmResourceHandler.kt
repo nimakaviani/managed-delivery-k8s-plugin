@@ -14,26 +14,23 @@
 
 package com.amazon.spinnaker.keel.k8s.resolver
 
-import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.FLUX_HELM_KIND
+import com.amazon.spinnaker.keel.k8s.HELM_REQUIRED_FIELDS
+import com.amazon.spinnaker.keel.k8s.HELM_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.K8S_LIST
 import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
 import com.amazon.spinnaker.keel.k8s.exception.NoVersionAvailable
 import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
-import com.amazon.spinnaker.keel.k8s.model.K8sManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.resolver.FluxManifestUtil.generateGitRepoManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
-import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
-import com.netflix.spinnaker.keel.api.ResourceDiff
-import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
-import com.netflix.spinnaker.keel.api.artifacts.DeliveryArtifact
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.persistence.KeelRepository
-import com.netflix.spinnaker.keel.persistence.NoMatchingArtifactException
 import com.netflix.spinnaker.keel.plugin.CannotResolveDesiredState
 import com.netflix.spinnaker.kork.exceptions.IntegrationException
 
@@ -63,10 +60,11 @@ class HelmResourceHandler(
         when (artifact) {
             // flux ignores the version field when GitRepository or Bucket is used. Must specify version at source controller
             is GitRepoArtifact -> {
+                val resolvedArtifact = resolveArtifactSpec(resource, artifact)
                 val sourceRef = mutableMapOf(
-                    "name" to "${artifact.name}-${environment.name}",
-                    "kind" to artifact.kind,
-                    "namespace" to artifact.namespace
+                    "name" to "${resolvedArtifact.name}-${environment.name}",
+                    "kind" to resolvedArtifact.kind,
+                    "namespace" to resolvedArtifact.namespace
                 )
                 resource.spec.template.spec?.let {
                     val chartSpec = (it["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, Any>
@@ -75,7 +73,7 @@ class HelmResourceHandler(
 
                 val repoUrl = artifactFromKeelRepository?.gitMetadata?.repo?.link
                     ?: throw InvalidArtifact("artifact version $version does not have repository URL in artifact metadata")
-                val gitRepoManifest = generateGitRepoManifest(artifact, repoUrl, version, environment.name)
+                val gitRepoManifest = generateGitRepoManifest(resolvedArtifact, repoUrl, version, environment.name)
                 resource.spec.template = toK8sList(
                     gitRepoManifest, resource.spec.template, generateCorrelationId(resource)
                 )
@@ -90,70 +88,31 @@ class HelmResourceHandler(
         return super.toResolvedType(resource)
     }
 
-    override suspend fun getK8sResource(r: Resource<HelmResourceSpec>): K8sObjectManifest? {
-        val (artifact, _) = getArtifactAndConfig(r)
-        val environment: String? = when (artifact) {
-            is GitRepoArtifact -> {
-                repository.environmentFor(r.id).name
-            }
-            else -> {
-                null
-            }
-        }
-        return super.getFluxK8sResources(r, artifact, generateCorrelationId(r), environment)
-    }
-
-    override suspend fun actuationInProgress(resource: Resource<HelmResourceSpec>): Boolean =
-        resource
-            .spec.template.let {
-                orcaService.getCorrelatedExecutions(generateCorrelationId(resource)).isNotEmpty()
-            }
-
-    override suspend fun upsert(
-        resource: Resource<HelmResourceSpec>,
-        diff: ResourceDiff<K8sObjectManifest>
-    ): List<Task> {
-        val spec = (diff.desired)
-        spec.items?.forEach { manifest ->
-            when (manifest.kind) {
-                FluxSupportedSourceType.GIT.fluxKind() -> {
-                    findAndNotifyGitArtifactDeployment(manifest, resource, "tag")
-                }
-                //TODO add support for other artifact types
-            }
-        } ?: log.warn("generated resource does not have anything under items field. Please check your configuration")
-        return super.upsert(resource, diff)
-    }
-
-    private fun findAndNotifyGitArtifactDeployment(
-        manifest: K8sManifest,
-        resource: Resource<HelmResourceSpec>,
-        versionString: String
-    ) {
-        val version = find(manifest.spec ?: mutableMapOf(), versionString) as String?
-        log.debug("found tag: $version")
-        version?.let {
-            log.info("Deploying Git artifact $it")
-            notifyArtifactDeploying(resource, it)
-        }
-    }
-
     private fun verifyChartResource(resource: Resource<HelmResourceSpec>) {
         resource.spec.template.spec?.let {
             HELM_REQUIRED_FIELDS.forEach { reqField ->
                 if (!it.containsKey(reqField)) {
-                    throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.$reqField field is missing"))
+                    throw CannotResolveDesiredState(
+                        resource.id,
+                        IntegrationException("spec.template.spec.$reqField field is missing")
+                    )
                 }
             }
             (it["chart"] as Map<String, Any>)["spec"]?.let { specMap ->
                 val chartSpec = specMap as Map<String, Any>
                 if (!chartSpec.containsKey("chart")) {
-                    throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.chart.spec field is missing"))
+                    throw CannotResolveDesiredState(
+                        resource.id,
+                        IntegrationException("spec.template.spec.chart.spec field is missing")
+                    )
                 }
-            } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec.chart.spec field is missing"))
-        } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec field is missing")                                                                                             )
+            } ?: throw CannotResolveDesiredState(
+                resource.id,
+                IntegrationException("spec.template.spec.chart.spec field is missing")
+            )
+        } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec field is missing"))
     }
 
-    private fun generateCorrelationId(resource: Resource<HelmResourceSpec>): String =
+    override fun generateCorrelationId(resource: Resource<HelmResourceSpec>): String =
         "$K8S_LIST-$FLUX_HELM_KIND-${resource.spec.template.name()}"
 }

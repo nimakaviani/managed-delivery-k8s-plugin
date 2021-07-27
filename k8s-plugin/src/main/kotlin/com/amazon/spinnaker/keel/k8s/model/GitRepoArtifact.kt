@@ -26,7 +26,7 @@ data class GitRepoArtifact(
     val project: String,
     val gitType: String,
     val tagVersionStrategy: TagVersionStrategy,
-    val namespace: String = "flux-system",
+    override val namespace: String = "flux-system",
     override val interval: String = "1m",
     override val secretRef: String? = null,
 ) : BaseFluxArtifact() {

@@ -8,6 +8,8 @@ import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
+import com.netflix.spinnaker.keel.api.ResourceDiff
+import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
@@ -28,30 +30,67 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
     open val repository: KeelRepository
 ) : GenericK8sResourceHandler<S, R>(cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers) {
 
+    abstract fun generateCorrelationId(resource: Resource<S>): String
+
     override suspend fun current(resource: Resource<S>): R? {
         val deployed = getK8sResource(resource)
         // Check health of resources returned by clouddriver
-        if (deployed != null ){
+        if (deployed != null) {
             notifyHealthAndArtifactDeployment(deployed, resource)
         }
         return deployed
     }
 
-    @Suppress("UNCHECKED_CAST")
-    suspend fun getFluxK8sResources(resource: Resource<S>, artifact: BaseFluxArtifact, correlationId: String, environment: String?): R? {
-        val namespace = getNamespace(resource)
-        val repoNameInClouddriver: String
-        val repoNamespace: String
+
+    override suspend fun getK8sResource(r: Resource<S>): R? {
+        val environment = repository.environmentFor(r.id)
+        val (artifact, _) = getArtifactAndConfig(r)
         when (artifact) {
             is GitRepoArtifact -> {
-                repoNamespace = artifact.namespace
-                repoNameInClouddriver = environment?.let {
-                    "${artifact.kind} ${artifact.name}-$it"
-                } ?: run{"${artifact.kind} ${artifact.name}"}
+                val resolvedArtifact = resolveArtifactSpec(r, artifact)
+                return getFluxK8sResources(r, resolvedArtifact, generateCorrelationId(r), environment.name)
             }
-            // TODO implement other types
-            else -> throw InvalidArtifact("artifact is not a supported artifact type. artifact: $artifact")
+            else -> {
+                throw InvalidArtifact("artifact is not a supported artifact type. artifact: $artifact")
+            }
         }
+    }
+
+    override suspend fun actuationInProgress(resource: Resource<S>): Boolean =
+        resource.spec.template.let {
+            log.debug("Checking if actuation is in progress")
+            orcaService.getCorrelatedExecutions(generateCorrelationId(resource)).isNotEmpty()
+        }
+
+    override suspend fun upsert(
+        resource: Resource<S>,
+        diff: ResourceDiff<R>
+    ): List<Task> {
+        val spec = (diff.desired)
+        spec.items?.forEach { manifest ->
+            when (manifest.kind) {
+                FluxSupportedSourceType.GIT.fluxKind() -> {
+                    findAndNotifyGitArtifactDeployment(manifest, resource, "tag")
+                }
+                //TODO add support for other artifact types
+            }
+        } ?: log.warn("generated resource does not have anything under items field. Please check your configuration")
+        return super.upsert(resource, diff)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    suspend fun getFluxK8sResources(
+        resource: Resource<S>,
+        artifact: BaseFluxArtifact,
+        correlationId: String,
+        environment: String?
+    ): R? {
+        val namespace = getNamespace(resource)
+        val repoNamespace: String = artifact.namespace
+        val repoNameInClouddriver: String = environment?.let {
+            "${artifact.kind} ${artifact.name}-$it"
+        } ?: run { "${artifact.kind} ${artifact.name}" }
+
         // need to wrap async with coroutineScope to catch exceptions correctly
         try {
             return coroutineScope {
@@ -132,7 +171,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         ) as R
     }
 
-    fun notifyHealthAndArtifactDeployment(manifest: R, resource: Resource<S>) {
+    private fun notifyHealthAndArtifactDeployment(manifest: R, resource: Resource<S>) {
         manifest.let outer@{
             log.debug("response from clouddriver for manifest: $it")
             it.items?.forEach { manifest ->
@@ -159,7 +198,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
 
     fun getArtifactAndConfig(resource: Resource<S>): Pair<BaseFluxArtifact, DeliveryConfig> {
         val deliveryConfig = repository.deliveryConfigFor(resource.id)
-        resource.spec.artifactRef.let { artifactRef ->
+        resource.spec.artifactReference.let { artifactRef ->
             val artifact = deliveryConfig.artifacts.find {
                 log.trace("checking $it")
                 it.reference == artifactRef
@@ -171,6 +210,34 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
 
             log.debug("found FluxArtifact: $artifact")
             return Pair(artifact as BaseFluxArtifact, deliveryConfig)
+        }
+    }
+
+    inline fun <reified T : BaseFluxArtifact> resolveArtifactSpec(resource: Resource<S>, artifact: T): T {
+        when (artifact) {
+            is GitRepoArtifact -> {
+                return artifact.copy(
+                    namespace = resource.spec.artifactSpec.namespace ?: artifact.namespace,
+                    interval = resource.spec.artifactSpec.interval ?: artifact.interval
+                ) as T
+            }
+            // TODO add support for more artifacts
+            else -> {
+                throw InvalidArtifact("artifact is not a supported artifact type. artifact: $artifact")
+            }
+        }
+    }
+
+    fun findAndNotifyGitArtifactDeployment(
+        manifest: K8sManifest,
+        resource: Resource<S>,
+        versionString: String
+    ) {
+        val version = find(manifest.spec ?: mutableMapOf(), versionString) as String?
+        log.debug("found version: $version")
+        version?.let {
+            log.info("Deploying Git artifact $it")
+            notifyArtifactDeploying(resource, it)
         }
     }
 }

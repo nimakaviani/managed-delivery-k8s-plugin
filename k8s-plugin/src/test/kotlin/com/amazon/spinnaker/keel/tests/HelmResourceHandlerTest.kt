@@ -97,7 +97,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
       resources:
       - kind: k8s/helm@v1
         spec:
-          artifactRef: my-git-artifact
+          artifactSpec:
+            ref: my-git-artifact
           metadata:
             application: fnord
           template:
@@ -123,7 +124,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
       regions: []
     metadata:
       application: fnord
-    artifactRef: my-git-artifact
+    artifactSpec:
+      ref: my-git-artifact
     template:
       metadata:
         name: fnord-test
@@ -176,7 +178,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         |  regions: []
         |metadata:
         |  application: fnord
-        |artifactRef: nope
+        |artifactSpec:
+        |  ref: my-git-artifact
         |template:
         |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
         |  kind: HelmRelease

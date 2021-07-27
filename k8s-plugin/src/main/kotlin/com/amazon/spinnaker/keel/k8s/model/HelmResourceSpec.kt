@@ -25,7 +25,7 @@ class HelmResourceSpec (
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
-    override val artifactRef: String
+    override val artifactSpec: ArtifactSpec
 ): ArtifactReferenceProvider, BaseFluxResourceSpec() {
     init {
         template.kind = template.kind ?: FLUX_HELM_KIND
