@@ -43,9 +43,9 @@ class HelmResourceHandler(
     override val eventPublisher: EventPublisher,
     orcaService: OrcaService,
     override val resolvers: List<Resolver<*>>,
-    val repository: KeelRepository
-) : GenericK8sResourceHandler<HelmResourceSpec, K8sObjectManifest>(
-    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers
+    override val repository: KeelRepository
+) : BaseFluxHandler<HelmResourceSpec, K8sObjectManifest>(
+    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers, repository
 ) {
     override val supportedKind = HELM_RESOURCE_SPEC_V1
 
@@ -90,12 +90,6 @@ class HelmResourceHandler(
         return super.toResolvedType(resource)
     }
 
-    override suspend fun current(resource: Resource<HelmResourceSpec>): K8sObjectManifest? {
-        val deployed = getK8sResource(resource)
-        notifyHealthAndArtifactDeployment(deployed, resource)
-        return deployed
-    }
-
     override suspend fun getK8sResource(r: Resource<HelmResourceSpec>): K8sObjectManifest? {
         val (artifact, _) = getArtifactAndConfig(r)
         val environment: String? = when (artifact) {
@@ -114,20 +108,6 @@ class HelmResourceHandler(
             .spec.template.let {
                 orcaService.getCorrelatedExecutions(generateCorrelationId(resource)).isNotEmpty()
             }
-
-    private fun getArtifactAndConfig(resource: Resource<HelmResourceSpec>): Pair<DeliveryArtifact, DeliveryConfig> {
-        val deliveryConfig = repository.deliveryConfigFor(resource.id)
-        resource.spec.artifactRef.let { artifactRef ->
-            val artifact = deliveryConfig.artifacts.find {
-                it.reference == artifactRef
-            } ?: throw NoMatchingArtifactException(
-                deliveryConfigName = deliveryConfig.name,
-                type = "unknown",
-                reference = artifactRef
-            )
-            return Pair(artifact, deliveryConfig)
-        }
-    }
 
     override suspend fun upsert(
         resource: Resource<HelmResourceSpec>,

@@ -30,7 +30,7 @@ class NoVersionAvailable(name: String, type: String) :
     ResourceCurrentlyUnresolvable("No version available for deployment with name, $name, and type, $type")
 
 class InvalidArtifact(message: String) :
-    IntegrationException("Unable to determine artifact version due to $message")
+    IntegrationException(message)
 
 class RegistryNotFound(account: String) :
     IntegrationException("Unable to find docker registry for account $account")

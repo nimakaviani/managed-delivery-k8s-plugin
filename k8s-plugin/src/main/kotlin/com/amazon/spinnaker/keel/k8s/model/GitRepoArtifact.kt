@@ -27,13 +27,13 @@ data class GitRepoArtifact(
     val gitType: String,
     val tagVersionStrategy: TagVersionStrategy,
     val namespace: String = "flux-system",
-    val interval: String = "1m",
-    val secretRef: String? = null,
-) : DeliveryArtifact() {
+    override val interval: String = "1m",
+    override val secretRef: String? = null,
+) : BaseFluxArtifact() {
     override val type = FluxSupportedSourceType.GIT.name.toLowerCase()
     override val name = "$type-$gitType-$project-$repoName"
+    override val kind = FluxSupportedSourceType.GIT.fluxKind()
 
-    val kind = FluxSupportedSourceType.GIT.fluxKind()
     @JsonIgnore
     override val statuses: Set<ArtifactStatus> = emptySet()
 

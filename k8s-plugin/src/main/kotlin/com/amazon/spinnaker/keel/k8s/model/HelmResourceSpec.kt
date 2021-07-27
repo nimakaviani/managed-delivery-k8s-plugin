@@ -25,16 +25,10 @@ class HelmResourceSpec (
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
-    val artifactRef: String
-): ArtifactReferenceProvider, GenericK8sLocatable {
+    override val artifactRef: String
+): ArtifactReferenceProvider, BaseFluxResourceSpec() {
     init {
         template.kind = template.kind ?: FLUX_HELM_KIND
         template.apiVersion = template.apiVersion ?: FLUX_HELM_API_VERSION
     }
-
-    override val artifactReference: String?
-        get() = artifactRef
-
-    override val artifactType: ArtifactType
-        get() = FluxSupportedSourceType.GIT.name.toLowerCase()
 }

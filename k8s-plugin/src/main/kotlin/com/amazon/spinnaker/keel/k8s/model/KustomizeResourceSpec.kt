@@ -23,16 +23,10 @@ class KustomizeResourceSpec (
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
-    val artifactRef: String
-): ArtifactReferenceProvider, GenericK8sLocatable {
+    override val artifactRef: String
+): BaseFluxResourceSpec(), GenericK8sLocatable {
     init {
         template.kind = template.kind ?: FLUX_KUSTOMIZE_KIND
         template.apiVersion = template.apiVersion ?: FLUX_KUSTOMIZE_API_VERSION
     }
-
-    override val artifactReference: String
-        get() = artifactRef
-
-    override val artifactType: ArtifactType
-        get() = FluxSupportedSourceType.GIT.name.toLowerCase()
 }

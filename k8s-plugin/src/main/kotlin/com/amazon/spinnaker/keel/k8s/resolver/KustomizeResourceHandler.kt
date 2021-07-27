@@ -23,7 +23,6 @@ import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.KustomizeResourceSpec
 import com.amazon.spinnaker.keel.k8s.resolver.FluxManifestUtil.generateGitRepoManifest
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
-import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
 import com.netflix.spinnaker.keel.api.actuation.Task
@@ -32,7 +31,6 @@ import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.persistence.KeelRepository
-import com.netflix.spinnaker.keel.persistence.NoMatchingArtifactException
 import kotlinx.coroutines.coroutineScope
 
 class KustomizeResourceHandler(
@@ -41,9 +39,9 @@ class KustomizeResourceHandler(
     override val eventPublisher: EventPublisher,
     orcaService: OrcaService,
     override val resolvers: List<Resolver<*>>,
-    val repository: KeelRepository
-) : GenericK8sResourceHandler<KustomizeResourceSpec, K8sObjectManifest>(
-    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers
+    override val repository: KeelRepository
+) : BaseFluxHandler<KustomizeResourceSpec, K8sObjectManifest>(
+    cloudDriverK8sService, taskLauncher, eventPublisher, orcaService, resolvers, repository
 ) {
     override val supportedKind = KUSTOMIZE_RESOURCE_SPEC_V1
 
@@ -57,7 +55,10 @@ class KustomizeResourceHandler(
         }
 
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
-
+        // Kustomize controller only supports GitRepository as source
+        if (artifact !is GitRepoArtifact) {
+            throw InvalidArtifact("provided artifact is not a GitRepository artifact.")
+        }
         val spec = resource.spec.template.spec
         val environment = repository.environmentFor(resource.id)
         val version = repository.latestVersionApprovedIn(
@@ -85,13 +86,6 @@ class KustomizeResourceHandler(
         return super.toResolvedType(resource)
     }
 
-    override suspend fun current(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest? {
-        val deployed = getK8sResource(resource)
-        // Check health of resources returned by clouddriver
-        notifyHealthAndArtifactDeployment(deployed, resource)
-        return deployed
-    }
-
     @Suppress("UNCHECKED_CAST")
     override suspend fun getK8sResource(r: Resource<KustomizeResourceSpec>): K8sObjectManifest? =
         coroutineScope {
@@ -101,28 +95,10 @@ class KustomizeResourceHandler(
         }
 
     override suspend fun actuationInProgress(resource: Resource<KustomizeResourceSpec>): Boolean =
-        resource
-            .spec.template.let {
+        resource.spec.template.let {
                 log.debug("Checking if actuation is in progress")
                 orcaService.getCorrelatedExecutions(generateCorrelationId(resource)).isNotEmpty()
             }
-
-    // Flux only supports Git as its SourceRepository
-    private fun getArtifactAndConfig(resource: Resource<KustomizeResourceSpec>): Pair<GitRepoArtifact, DeliveryConfig> {
-        val deliveryConfig = repository.deliveryConfigFor(resource.id)
-        resource.spec.artifactRef.let { tagRef ->
-            val artifact = deliveryConfig.artifacts.find {
-                log.trace("checking $it")
-                it.reference == tagRef && it.type.toUpperCase() == FluxSupportedSourceType.GIT.name
-            } as GitRepoArtifact? ?: throw NoMatchingArtifactException(
-                deliveryConfigName = deliveryConfig.name,
-                type = FluxSupportedSourceType.GIT.name.toLowerCase(),
-                reference = tagRef
-            )
-            log.debug("found GitRepoArtifact: $artifact")
-            return Pair(artifact, deliveryConfig)
-        }
-    }
 
     override suspend fun upsert(
         resource: Resource<KustomizeResourceSpec>,

@@ -45,11 +45,11 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     open val cloudDriverK8sService: CloudDriverK8sService,
     open val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
-    val orcaService: OrcaService,
+    open val orcaService: OrcaService,
     open val resolvers: List<Resolver<*>>
     ): ResolvableResourceHandler<S, R>(resolvers) {
 
-    private val mapper = jacksonObjectMapper()
+    val mapper = jacksonObjectMapper()
     val logger = KotlinLogging.logger {}
     override val supportedKind: SupportedKind<S>
         get() = TODO("Not yet implemented")
@@ -246,129 +246,6 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
             }
         }
         return manifest
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    suspend fun getFluxK8sResources(resource: Resource<S>, artifact: DeliveryArtifact, correlationId: String, environment: String?): R? {
-        val namespace = getNamespace(resource)
-        val repoNameInClouddriver: String
-        val repoNamespace: String
-        when (artifact) {
-            is GitRepoArtifact -> {
-                repoNamespace = artifact.namespace
-                repoNameInClouddriver = environment?.let {
-                    "${artifact.kind} ${artifact.name}-$it"
-                } ?: run{"${artifact.kind} ${artifact.name}"}
-            }
-            // TODO implement other types
-            else -> throw InvalidArtifact("artifact is not a supported artifact type. artifact: $artifact")
-        }
-        // need to wrap async with coroutineScope to catch exceptions correctly
-        try {
-            return coroutineScope {
-                val repoJob = async {
-                    cloudDriverK8sService.getK8sResource(
-                        resource.serviceAccount,
-                        resource.spec.locations.account,
-                        repoNamespace,
-                        repoNameInClouddriver
-                    )
-                }
-                val resourceJob = async {
-                    cloudDriverK8sService.getK8sResource(
-                        resource.serviceAccount,
-                        resource.spec.locations.account,
-                        namespace,
-                        resource.spec.template!!.kindQualifiedName()
-                    )
-                }
-                val repoResponse = repoJob.await()
-                val resourceResponse = resourceJob.await()
-
-                val lastAppliedConfigRepo =
-                    (repoResponse.manifest.to<K8sObjectManifest>().metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-                val repoManifest = cleanup(mapper.readValue<K8sObjectManifest>(lastAppliedConfigRepo) as R)
-
-                val lastAppliedConfigResource =
-                    (resourceResponse.manifest.to<K8sObjectManifest>().metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-                val resourceManifest = cleanup(mapper.readValue<K8sObjectManifest>(lastAppliedConfigResource) as R)
-
-                repoManifest?.let {
-                    resourceManifest?.let {
-                        return@coroutineScope toK8sList(repoManifest, resourceManifest, correlationId)
-                    } ?: run {
-                        log.error("unable to read last applied config from clouddriver. $lastAppliedConfigResource")
-                        throw ClouddriverProcessingError("unable to read last applied config from clouddriver.")
-                    }
-                } ?: run {
-                    log.error("unable to read last applied config from clouddriver. $lastAppliedConfigRepo")
-                    throw ClouddriverProcessingError("unable to read last applied config from clouddriver.")
-                }
-
-            }
-        } catch (e: HttpException) {
-            if (e.code() == 404) {
-                log.info("resource ${resource.id} not found")
-                return null
-            } else {
-                throw e
-            }
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun getNamespace(resource: Resource<S>): String {
-        val metadata = resource.spec.template!!.metadata as Map<String, String>?
-        return metadata?.let {
-            it["namespace"]
-        } ?: "default"
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun toK8sList(
-        repoManifest: R,
-        resourceManifest: R,
-        name: String
-    ): R {
-            return K8sObjectManifest(
-                "v1",
-                K8S_LIST,
-                mutableMapOf(
-                    "name" to name
-                ),
-                null,
-                null,
-                null,
-                mutableListOf(
-                    repoManifest,
-                    resourceManifest
-                )
-            ) as R
-        }
-
-    fun notifyHealthAndArtifactDeployment(manifest: R?, resource: Resource<S>) {
-        manifest?.let outer@{
-            log.debug("response from clouddriver for manifest: $it")
-            it.items?.forEach { manifest ->
-                manifest.status?.let inner@{ status ->
-                    if (!status.isReady()) {
-                        log.info("${manifest.kind}-${manifest.name()} is NOT healthy")
-                        eventPublisher.publishEvent(ResourceHealthEvent(resource, false))
-                        return@outer
-                    }
-                    log.info("${manifest.kind}-${manifest.name()} is healthy")
-                }
-                if (manifest.kind == FluxSupportedSourceType.GIT.fluxKind()) {
-                    val tag = find(manifest.spec ?: mutableMapOf(), "tag") as String?
-                    tag?.let { t ->
-                        log.info("Deployed Git artifact $t")
-                        notifyArtifactDeployed(resource, t)
-                    }
-                }
-            } ?: return@outer
-            log.debug("notifying resource is healthy")
-            eventPublisher.publishEvent(ResourceHealthEvent(resource, true))
-        }
     }
 }
 
