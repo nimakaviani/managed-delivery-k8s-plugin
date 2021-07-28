@@ -64,3 +64,4 @@ enum class FluxSupportedSourceType {
 }
 
 val HELM_REQUIRED_FIELDS =  listOf("interval", "chart")
+val KUSTOMIZE_REQUIRED_FIELDS =  listOf("interval", "prune")

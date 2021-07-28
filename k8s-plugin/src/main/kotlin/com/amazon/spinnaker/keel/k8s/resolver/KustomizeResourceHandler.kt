@@ -14,12 +14,8 @@
 
 package com.amazon.spinnaker.keel.k8s.resolver
 
-import com.amazon.spinnaker.keel.k8s.FLUX_KUSTOMIZE_API_VERSION
-import com.amazon.spinnaker.keel.k8s.FLUX_KUSTOMIZE_KIND
-import com.amazon.spinnaker.keel.k8s.K8S_LIST
-import com.amazon.spinnaker.keel.k8s.KUSTOMIZE_RESOURCE_SPEC_V1
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
-import com.amazon.spinnaker.keel.k8s.exception.MisconfiguredObjectException
 import com.amazon.spinnaker.keel.k8s.exception.NoVersionAvailable
 import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
 import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
@@ -32,6 +28,8 @@ import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.persistence.KeelRepository
+import com.netflix.spinnaker.keel.plugin.CannotResolveDesiredState
+import com.netflix.spinnaker.kork.exceptions.IntegrationException
 
 class KustomizeResourceHandler(
     override val cloudDriverK8sService: CloudDriverK8sService,
@@ -46,13 +44,8 @@ class KustomizeResourceHandler(
     override val supportedKind = KUSTOMIZE_RESOURCE_SPEC_V1
 
     public override suspend fun toResolvedType(resource: Resource<KustomizeResourceSpec>): K8sObjectManifest {
+        verifyKustomizeResource(resource)
         log.debug("attempting to resolve resource for git")
-        if (resource.spec.template.kind != FLUX_KUSTOMIZE_KIND || resource.spec.template.apiVersion != FLUX_KUSTOMIZE_API_VERSION) {
-            throw MisconfiguredObjectException(
-                "incorrect kind or api version supplied. supplied: ${resource.spec.template.kind} + ${resource.spec.template.apiVersion}" +
-                        " supported: $FLUX_KUSTOMIZE_KIND + $FLUX_KUSTOMIZE_API_VERSION"
-            )
-        }
 
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
         // Kustomize controller only supports GitRepository as source
@@ -86,6 +79,19 @@ class KustomizeResourceHandler(
 
         // sending it to the super class for common labels and annotations to be added
         return super.toResolvedType(resource)
+    }
+
+    private fun verifyKustomizeResource(resource: Resource<KustomizeResourceSpec>) {
+        resource.spec.template.spec?.let {
+            KUSTOMIZE_REQUIRED_FIELDS.forEach { reqField ->
+                if (!it.containsKey(reqField)) {
+                    throw CannotResolveDesiredState(
+                        resource.id,
+                        IntegrationException("spec.template.spec.$reqField field is missing")
+                    )
+                }
+            }
+        } ?: throw CannotResolveDesiredState(resource.id, IntegrationException("spec.template.spec field is missing"))
     }
 
     override fun generateCorrelationId(resource: Resource<KustomizeResourceSpec>): String =

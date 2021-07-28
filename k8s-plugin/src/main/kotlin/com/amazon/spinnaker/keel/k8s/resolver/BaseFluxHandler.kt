@@ -228,7 +228,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         }
     }
 
-    fun findAndNotifyGitArtifactDeployment(
+    private fun findAndNotifyGitArtifactDeployment(
         manifest: K8sManifest,
         resource: Resource<S>,
         versionString: String
