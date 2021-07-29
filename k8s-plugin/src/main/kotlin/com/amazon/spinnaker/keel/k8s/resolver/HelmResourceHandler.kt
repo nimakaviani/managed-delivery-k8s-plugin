@@ -14,10 +14,7 @@
 
 package com.amazon.spinnaker.keel.k8s.resolver
 
-import com.amazon.spinnaker.keel.k8s.FLUX_HELM_KIND
-import com.amazon.spinnaker.keel.k8s.HELM_REQUIRED_FIELDS
-import com.amazon.spinnaker.keel.k8s.HELM_RESOURCE_SPEC_V1
-import com.amazon.spinnaker.keel.k8s.K8S_LIST
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
 import com.amazon.spinnaker.keel.k8s.exception.NoVersionAvailable
 import com.amazon.spinnaker.keel.k8s.model.GitRepoArtifact
@@ -55,22 +52,20 @@ class HelmResourceHandler(
             deliveryConfig, artifact, environment.name
         ) ?: throw NoVersionAvailable(artifact.name, artifact.type)
 
-        val artifactFromKeelRepository = repository.getArtifactVersion(artifact, version, null)
-
         when (artifact) {
             // flux ignores the version field when GitRepository or Bucket is used. Must specify version at source controller
             is GitRepoArtifact -> {
                 val resolvedArtifact = resolveArtifactSpec(resource, artifact)
                 val sourceRef = mutableMapOf(
-                    "name" to "${resolvedArtifact.name}-${environment.name}",
-                    "kind" to resolvedArtifact.kind,
-                    "namespace" to resolvedArtifact.namespace
+                    NAME to "${resolvedArtifact.name}-${environment.name}",
+                    KIND to resolvedArtifact.kind,
+                    NAMESPACE to resolvedArtifact.namespace
                 )
                 resource.spec.template.spec?.let {
-                    val chartSpec = (it["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, Any>
-                    chartSpec["sourceRef"] = sourceRef
+                    val chartSpec = (it[FLUX_CHART] as MutableMap<String, Any>)[SPEC] as MutableMap<String, Any>
+                    chartSpec[FLUX_SOURCE_REF] = sourceRef
                 }
-
+                val artifactFromKeelRepository = repository.getArtifactVersion(artifact, version, null)
                 val repoUrl = artifactFromKeelRepository?.gitMetadata?.repo?.link
                     ?: throw InvalidArtifact("artifact version $version does not have repository URL in artifact metadata")
                 val gitRepoManifest = generateGitRepoManifest(resolvedArtifact, repoUrl, version, environment.name)
@@ -98,12 +93,12 @@ class HelmResourceHandler(
                     )
                 }
             }
-            (it["chart"] as Map<String, Any>)["spec"]?.let { specMap ->
+            (it[FLUX_CHART] as Map<String, Any>)[SPEC]?.let { specMap ->
                 val chartSpec = specMap as Map<String, Any>
-                if (!chartSpec.containsKey("chart")) {
+                if (!chartSpec.containsKey(FLUX_CHART)) {
                     throw CannotResolveDesiredState(
                         resource.id,
-                        IntegrationException("spec.template.spec.chart.spec field is missing")
+                        IntegrationException("spec.template.spec.chart field is missing")
                     )
                 }
             } ?: throw CannotResolveDesiredState(

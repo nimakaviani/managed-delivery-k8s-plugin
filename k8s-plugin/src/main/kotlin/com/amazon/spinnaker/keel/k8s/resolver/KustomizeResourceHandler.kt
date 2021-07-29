@@ -60,11 +60,11 @@ class KustomizeResourceHandler(
         log.debug("found deployable version: $version")
         val resolvedArtifact = resolveArtifactSpec(resource, artifact)
         val sourceRef = mapOf(
-            "kind" to resolvedArtifact.kind,
-            "name" to "${resolvedArtifact.name}-${environment.name}",
-            "namespace" to resolvedArtifact.namespace
+            KIND to resolvedArtifact.kind,
+            NAME to "${resolvedArtifact.name}-${environment.name}",
+            NAMESPACE to resolvedArtifact.namespace
         )
-        spec?.set("sourceRef", sourceRef)
+        spec?.set(FLUX_SOURCE_REF, sourceRef)
 
         val artifactFromKeelRepository = repository.getArtifactVersion(artifact, version, null)
         val repoUrl = artifactFromKeelRepository?.gitMetadata?.repo?.link

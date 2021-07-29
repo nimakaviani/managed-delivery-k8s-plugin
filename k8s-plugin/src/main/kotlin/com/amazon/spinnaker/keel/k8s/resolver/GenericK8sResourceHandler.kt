@@ -169,7 +169,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     // remove known added labels and annotations for Keel diffing to work
     protected fun cleanup(r: R): R? {
         r.spec?.let {
-            it["template"]?.let {  t ->
+            it[TEMPLATE]?.let {  t ->
                 (t as MutableMap<String, Any?>)?.let {
                     it["metadata"]?.let {
                         (it as MutableMap<String, MutableMap<String, Any?>>)?.let { metadata ->
@@ -208,7 +208,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
 
     @Suppress("UNCHECKED_CAST")
     private fun augmentWithLabels(spec: MutableMap<String, Any?>, extraLabels: List<Pair<String, String>>) {
-        spec["template"]?.let { tpl ->
+        spec[TEMPLATE]?.let { tpl ->
             val template = tpl as MutableMap<String, Any?>? ?: return@let
             template["metadata"]?.let { md ->
                 val metadata = md as MutableMap<String, Any?>? ?: return@let
@@ -221,7 +221,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
                 }
                 metadata["labels"] = labels
             }
-            template["spec"]?.let {
+            template[SPEC]?.let {
                 val nested = tpl as MutableMap<String, Any?>? ?: return@let
                 augmentWithLabels(spec = nested, extraLabels = extraLabels)
             }
