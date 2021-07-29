@@ -14,19 +14,11 @@
 
 package com.amazon.spinnaker.keel.k8s.model
 
-import com.amazon.spinnaker.keel.k8s.*
-import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
-import com.netflix.spinnaker.keel.api.SimpleLocations
-import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
+import com.netflix.spinnaker.keel.api.artifacts.DeliveryArtifact
 
-class KustomizeResourceSpec (
-    override val metadata: Map<String, String>,
-    override var template: K8sObjectManifest,
-    override val locations: SimpleLocations,
-    override val artifactSpec: ArtifactSpec
-): BaseFluxResourceSpec(), GenericK8sLocatable {
-    init {
-        template.kind = template.kind ?: FLUX_KUSTOMIZE_KIND
-        template.apiVersion = template.apiVersion ?: FLUX_KUSTOMIZE_API_VERSION
-    }
+abstract class BaseFluxArtifact: DeliveryArtifact() {
+    abstract val kind: String
+    abstract val secretRef: String?
+    abstract val interval: String
+    open val namespace: String = "flux-system"
 }

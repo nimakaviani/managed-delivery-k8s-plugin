@@ -14,21 +14,23 @@
 
 package com.amazon.spinnaker.keel.k8s.model
 
-import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
 import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
-import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
-import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
-class HelmResourceSpec (
-    val chart: ReferenceProvider? = null,
-    override val metadata: Map<String, String>,
-    override var template: K8sObjectManifest,
-    override val locations: SimpleLocations,
-    override val artifactSpec: ArtifactSpec
-): ArtifactReferenceProvider, BaseFluxResourceSpec() {
-    init {
-        template.kind = template.kind ?: FLUX_HELM_KIND
-        template.apiVersion = template.apiVersion ?: FLUX_HELM_API_VERSION
-    }
+abstract class BaseFluxResourceSpec:  ArtifactReferenceProvider, GenericK8sLocatable {
+    abstract val artifactSpec: ArtifactSpec
+
+    override val artifactReference: String
+        get() = artifactSpec.ref
+
+    override val artifactType: ArtifactType
+        get() = FluxSupportedSourceType.GIT.name.toLowerCase()
 }
+
+// allow overriding things specified in BaseFluxArtifact per resource
+data class ArtifactSpec(
+    val ref: String,
+    val namespace: String?,
+    val interval: String?
+)

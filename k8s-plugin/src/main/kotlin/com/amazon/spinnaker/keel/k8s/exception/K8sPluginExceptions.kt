@@ -26,6 +26,12 @@ class NoDigestFound(repository: String, tag: String) :
 class DockerImageNotFound(account: String, repository: String, tag: String) :
     ResourceCurrentlyUnresolvable("No Docker image found for $repository:$tag in $account")
 
+class NoVersionAvailable(name: String, type: String) :
+    ResourceCurrentlyUnresolvable("No version available for deployment with name, $name, and type, $type")
+
+class InvalidArtifact(message: String) :
+    IntegrationException(message)
+
 class RegistryNotFound(account: String) :
     IntegrationException("Unable to find docker registry for account $account")
 
@@ -46,3 +52,5 @@ class CredResourceTypeMissing(msg: String, e: Throwable? = null):
 
 class ResourceNotReady(resource: Resource<ResourceSpec>, e: Throwable? = null):
         Exception("${resource.spec.displayName} is not healthy" )
+class ClouddriverProcessingError(msg: String, e: Throwable? = null):
+    ResourceCurrentlyUnresolvable(msg, e)

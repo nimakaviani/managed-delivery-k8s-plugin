@@ -74,7 +74,7 @@ More details on the above can be found on the corresponding
 
 ## Deploying to Kubernetes
 
-### Supported Artifact types
+### Supported artifact types
 
 One biggest advantage of Spinnaker's managed delivery is its ability to track artifacts and enforce
 rollouts to resources it manages when artifacts change.
@@ -220,6 +220,8 @@ artifacts:
   project: testProject
   gitType: github
   secretRef: git-repo # This is passed to Flux's GitRepositorySpec.SecretRef field
+  namespace: flux-system # optional. which namespace should be used to create Flux Source object. defaults to flux-system
+  interval: 1m # optional. how often flux source controller should poll source. defaults to 1m
 environments:
 - name: test
   locations:
@@ -230,7 +232,10 @@ environments:
     metadata:
       serviceAccount: keeltest-service-account
     spec:
-      artifactRef: my-git-artifact # Required
+      artifactSpec: 
+        ref: my-git-artifact # Required
+        namespace: test # override the artifacts[0].namespace value for this resource only
+        interval: 10m # override the artifacts[0].interval value for this resource only
       metadata:
         application: fnord
       template:
@@ -265,7 +270,8 @@ environments:
   resources:
   - kind: k8s/helm@v1
     spec:
-      artifactRef: my-git-artifact # Required
+      artifactSpec:
+        ref: my-git-artifact # Required
       metadata:
         application: fnord
       template:
@@ -394,6 +400,7 @@ The plugin relies on [Flux2](https://github.com/fluxcd/flux2) for deployment of 
 This relieves the plugin from having to deal with the heavy lifting of managing changes to HELM charts
 or Kustomization sources where that can be delegated to flux.
 
+#### HELM 
 In order to get HELM deployments working, first you need to install [Flux2](https://github.com/fluxcd/flux2)
 _helm controller_ and _source controller_ into your cluster, with the following command (assuming that you
 have Flux2 CLI already installed):
@@ -407,56 +414,12 @@ flux install \
 
 Once the controllers are installed, adding a HELM repository and a HELM release to a delivery config manifest
 is similar to how it is done for Kubernetes resources. The managed delivery resource kind however, needs
-to be updated to `k8s/helm@v1` for the `HelmRepository`, indicating deployment of a HELM chart using the plugin.
+to be updated to `k8s/helm@v1`, indicating deployment of a HELM chart using the plugin.
 
-Below, an example is shown for _Crossplane_.
+See the [Supported Artifact types](#supported-artifact-types) section for a complete example.
 
-```yaml
-resources:
-- kind: k8s/resource@v1
-  spec:
-    metadata:
-      application: spinmd
-    template:
-      apiVersion: source.toolkit.fluxcd.io/v1beta1
-      kind: HelmRepository
-      metadata:
-          name: crossplane-master
-          namespace: flux-system
-      spec:
-          interval: 5m
-          url: https://charts.crossplane.io/master
-
-- kind: k8s/helm@v1
-  spec:
-    metadata:
-      application: spinmd
-    template:
-      metadata:
-        name: crossplane
-        namespace: flux-system
-      spec:
-        releaseName: crossplane
-        targetNamespace: crossplane-system
-        chart:
-          spec:
-            chart: crossplane
-            version: 1.2.0-rc.0.113.gb94884d0
-            sourceRef:
-              kind: HelmRepository
-              name: crossplane-master
-              namespace: flux-system
-        interval: 1m
-        install:
-          remediation:
-            retries: 3
-```
-
-**Note:** _Tracking of charts on HELM repositories is not yet supported in the plugin_.
-
----
-
-Similarly, for installing Kustomizations, you first add the required flux controllers:
+#### Kustomize
+Similar to HELM deployments, you need to install Flux2 kustomize controller and source controller.
 
 ```bash
 flux install \
@@ -465,44 +428,8 @@ flux install \
     --components=source-controller,kustomize-controller
 ```
 
-then, add the Git repo and the `k8s/kustomize@v1` resource to the delivery manifest:
+See the [Supported Artifact types](#supported-artifact-types) section for a complete example.
 
-```yaml
-resources:
-  - kind: k8s/resource@v1
-    spec:
-      metadata:
-        application: spinmd
-      template:
-        apiVersion: source.toolkit.fluxcd.io/v1beta1
-        kind: GitRepository
-        metadata:
-          name: crossflux
-        spec:
-          interval: 5m
-          url: ssh://git@github.com/nimakaviani/crossflux.git
-          secretRef:
-            name: git-deploy-key
-          ref:
-            branch: main
-
-
-  - kind: k8s/kustomize@v1
-    spec:
-      metadata:
-        application: spinmd
-      template:
-        metadata:
-          name: setup
-        spec:
-          interval: 10m0s
-          sourceRef:
-            kind: GitRepository
-            name: crossflux
-          path: ./setup
-          prune: true
-          validation: client
-```
 </details>
 
 <details>

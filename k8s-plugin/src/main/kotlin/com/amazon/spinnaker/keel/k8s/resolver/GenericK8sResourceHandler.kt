@@ -15,15 +15,18 @@
 package com.amazon.spinnaker.keel.k8s.resolver
 
 import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.exception.ClouddriverProcessingError
+import com.amazon.spinnaker.keel.k8s.exception.InvalidArtifact
 import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
-import com.amazon.spinnaker.keel.k8s.model.GenericK8sLocatable
-import com.amazon.spinnaker.keel.k8s.model.K8sManifest
-import com.amazon.spinnaker.keel.k8s.model.isReady
+import com.amazon.spinnaker.keel.k8s.model.*
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.api.ResourceDiff
 import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
+import com.netflix.spinnaker.keel.api.artifacts.DeliveryArtifact
 import com.netflix.spinnaker.keel.api.plugins.ResolvableResourceHandler
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.plugins.SupportedKind
@@ -31,6 +34,8 @@ import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.model.OrcaJob
 import com.netflix.spinnaker.keel.orca.OrcaService
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import mu.KotlinLogging
 import retrofit2.HttpException
@@ -40,12 +45,12 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     open val cloudDriverK8sService: CloudDriverK8sService,
     open val taskLauncher: TaskLauncher,
     override val eventPublisher: EventPublisher,
-    val orcaService: OrcaService,
+    open val orcaService: OrcaService,
     open val resolvers: List<Resolver<*>>
     ): ResolvableResourceHandler<S, R>(resolvers) {
 
+    val mapper = jacksonObjectMapper()
     val logger = KotlinLogging.logger {}
-
     override val supportedKind: SupportedKind<S>
         get() = TODO("Not yet implemented")
 
@@ -164,7 +169,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
     // remove known added labels and annotations for Keel diffing to work
     protected fun cleanup(r: R): R? {
         r.spec?.let {
-            it["template"]?.let {  t ->
+            it[TEMPLATE]?.let {  t ->
                 (t as MutableMap<String, Any?>)?.let {
                     it["metadata"]?.let {
                         (it as MutableMap<String, MutableMap<String, Any?>>)?.let { metadata ->
@@ -203,7 +208,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
 
     @Suppress("UNCHECKED_CAST")
     private fun augmentWithLabels(spec: MutableMap<String, Any?>, extraLabels: List<Pair<String, String>>) {
-        spec["template"]?.let { tpl ->
+        spec[TEMPLATE]?.let { tpl ->
             val template = tpl as MutableMap<String, Any?>? ?: return@let
             template["metadata"]?.let { md ->
                 val metadata = md as MutableMap<String, Any?>? ?: return@let
@@ -216,7 +221,7 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
                 }
                 metadata["labels"] = labels
             }
-            template["spec"]?.let {
+            template[SPEC]?.let {
                 val nested = tpl as MutableMap<String, Any?>? ?: return@let
                 augmentWithLabels(spec = nested, extraLabels = extraLabels)
             }
@@ -243,3 +248,4 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
         return manifest
     }
 }
+
