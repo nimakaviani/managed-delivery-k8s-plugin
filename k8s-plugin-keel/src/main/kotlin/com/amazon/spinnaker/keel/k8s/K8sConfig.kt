@@ -60,6 +60,9 @@ const val FLUX_KUSTOMIZE_KIND: String = "Kustomization"
 const val FLUX_SECRETS_TOKEN_USERNAME: String = "token-user"
 const val FLUX_SOURCE_API_VERSION: String = "source.toolkit.fluxcd.io/v1beta1"
 
+const val VERIFICATION_K8S_JOB: String = "kubernetesJob"
+const val VERIFICATION_K8S_TYPE: String = "runJobManifest"
+
 enum class FluxSupportedSourceType {
     GIT { override fun fluxKind(): String = "GitRepository" },
     HELM {override fun fluxKind(): String = "HelmRepository"},

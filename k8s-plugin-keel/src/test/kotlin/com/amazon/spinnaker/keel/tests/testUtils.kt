@@ -14,10 +14,7 @@
 
 package com.amazon.spinnaker.keel.tests
 
-import com.amazon.spinnaker.keel.k8s.FLUX_SOURCE_API_VERSION
-import com.amazon.spinnaker.keel.k8s.FluxSupportedSourceType
-import com.amazon.spinnaker.keel.k8s.K8S_LAST_APPLIED_CONFIG
-import com.amazon.spinnaker.keel.k8s.K8sResourceModel
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.*
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
@@ -74,8 +71,10 @@ object testUtils {
         val yamlMapper = configuredYamlMapper()
         yamlMapper.registerSubtypes(
             NamedType(GitRepoArtifact::class.java, "git"),
+            NamedType(DockerArtifact::class.java, "docker"),
             NamedType(KustomizeResourceSpec::class.java, "k8s/kustomize@v1"),
-            NamedType(HelmResourceSpec::class.java, "k8s/helm@v1")
+            NamedType(HelmResourceSpec::class.java, "k8s/helm@v1"),
+            NamedType(K8sJobVerification::class.java, VERIFICATION_K8S_JOB)
         )
         yamlMapper.addMixIn(
             KustomizeResourceSpec::class.java, ResourceSpecMixin::class.java
