@@ -3,13 +3,14 @@ name: Check license
 on: [ pull_request ]
 
 jobs:
-  build:
+  licenseCheck:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Golang
       uses: actions/setup-go@v2
+      with:
+        go-version: '^1.17'
     - name: Install addlicense
       run: |
         export PATH=${PATH}:`go env GOPATH`/bin
