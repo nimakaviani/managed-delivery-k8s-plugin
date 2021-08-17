@@ -14,9 +14,13 @@
 
 package com.amazon.spinnaker.keel.tests
 
+import com.amazon.spinnaker.keel.k8s.*
+import com.amazon.spinnaker.keel.k8s.model.K8sJobVerification
 import com.amazon.spinnaker.keel.k8s.verificationEvaluator.K8sJobEvaluator
+import com.amazon.spinnaker.keel.tests.testUtils.getRandomString
 import com.netflix.spinnaker.keel.api.ArtifactInEnvironmentContext
 import com.netflix.spinnaker.keel.api.action.ActionState
+import com.netflix.spinnaker.keel.api.actuation.Job
 import com.netflix.spinnaker.keel.api.actuation.Task
 import com.netflix.spinnaker.keel.api.actuation.TaskLauncher
 import com.netflix.spinnaker.keel.api.artifacts.PublishedArtifact
@@ -30,15 +34,14 @@ import dev.minutest.rootContext
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.slot
 import okhttp3.ResponseBody
 import org.springframework.http.HttpStatus
 import retrofit2.HttpException
 import retrofit2.Response
 import strikt.api.expectCatching
 import strikt.api.expectThat
-import strikt.assertions.failed
-import strikt.assertions.isA
-import strikt.assertions.isEqualTo
+import strikt.assertions.*
 import java.time.Instant
 
 internal class K8sJobEvaluatorTest : JUnit5Minutests {
@@ -56,12 +59,11 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
     - name: test
       verifyWith:
       - account: deploy-experiements
-        type: kubernetesJob
+        type: k8s/job@v1
         manifest: 
-          apiVersion: batch/v1
-          kind: Job
           metadata:
             name: pi
+            some: value
           spec:
             template:
               spec:
@@ -111,9 +113,9 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
             clearAllMocks()
         }
 
-        val deliveryConfig =
-            yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
-        context("everything works") {
+        context("evaluate and everything works") {
+            val deliveryConfig =
+                yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
             test("successful verification") {
                 coEvery {
                     orcaService.getOrchestrationExecution("123", any())
@@ -142,10 +144,14 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PENDING)
             }
-
+        }
+        context("start task and everything works") {
             test("successful start of k8s job") {
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val slot = slot<List<Job>>()
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
                 } returns Task("123", "somename")
                 val context = ArtifactInEnvironmentContext(
                     deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
@@ -155,6 +161,43 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
 
                 val result = start(context, deliveryConfig.environments.first().verifyWith.first())
                 expectThat(result).isEqualTo(mapOf("taskId" to "123", "taskName" to "somename"))
+
+                expectThat(slot.captured.size).isEqualTo(1)
+                expectThat(slot.captured.first()["type"]).isEqualTo(VERIFICATION_K8S_TYPE)
+
+                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
+                expectThat(manifest[API_VERSION]).isEqualTo(VERIFICATION_K8S_JOB_API_V1)
+                expectThat(manifest[KIND]).isEqualTo(VERIFICATION_K8S_JOB_KIND)
+
+                val metadata = manifest["metadata"] as Map<String, Any>
+                expectThat(metadata[NAME]).isNotEqualTo("pi")
+                expectThat(metadata["some"]).isEqualTo("value")
+            }
+
+            test("name is trimmed and name prefix applied") {
+                val longString = getRandomString(240)
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val verification = (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification)
+
+                val slot = slot<List<Job>>()
+                coEvery {
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                } returns Task("123", "somename")
+                val context = ArtifactInEnvironmentContext(
+                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                    )
+                )
+                start(context, verification.copy(account = longString, jobNamePrefix = "tEstIngPrefix"))
+                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
+                val metadata = manifest["metadata"] as Map<String, Any>
+                val name = metadata["name"] as String
+                expectThat(name.length).isEqualTo(252)
+                expectThat(name.startsWith("testingprefix")).isTrue()
+                expectThat(name.toLowerCase()).isEqualTo(name)
+                expectThat(name.contains("/")).isFalse()
+                expectThat(metadata["some"]).isEqualTo("value")
             }
         }
 
@@ -166,6 +209,8 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
             val actionState = ActionState(
                 ConstraintStatus.PENDING, Instant.now(), null, mapOf("taskId" to "123", "taskName" to "somename")
             )
+            val deliveryConfig =
+                yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
             test("404 results in failure") {
                 coEvery {
                     orcaService.getOrchestrationExecution("123", "keel@spinnaker.io")

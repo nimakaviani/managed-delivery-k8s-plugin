@@ -74,7 +74,7 @@ object testUtils {
             NamedType(DockerArtifact::class.java, "docker"),
             NamedType(KustomizeResourceSpec::class.java, "k8s/kustomize@v1"),
             NamedType(HelmResourceSpec::class.java, "k8s/helm@v1"),
-            NamedType(K8sJobVerification::class.java, VERIFICATION_K8S_JOB)
+            NamedType(K8sJobVerification::class.java, VERIFICATION_K8S_JOB_V1)
         )
         yamlMapper.addMixIn(
             KustomizeResourceSpec::class.java, ResourceSpecMixin::class.java
@@ -109,4 +109,12 @@ object testUtils {
             warnings = emptyList()
         )
     }
+
+    fun getRandomString(length: Int) : String {
+        val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+        return (1..length)
+            .map { allowedChars.random() }
+            .joinToString("")
+    }
+
 }

@@ -14,10 +14,7 @@
 
 package com.amazon.spinnaker.keel.k8s.verificationEvaluator
 
-import com.amazon.spinnaker.keel.k8s.K8S_PROVIDER
-import com.amazon.spinnaker.keel.k8s.SOURCE_TYPE
-import com.amazon.spinnaker.keel.k8s.VERIFICATION_K8S_JOB
-import com.amazon.spinnaker.keel.k8s.VERIFICATION_K8S_TYPE
+import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.K8sJobVerification
 import com.netflix.spinnaker.keel.api.ArtifactInEnvironmentContext
 import com.netflix.spinnaker.keel.api.Verification
@@ -32,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import retrofit2.HttpException
+import java.util.*
 
 class K8sJobEvaluator(
     private val taskLauncher: TaskLauncher,
@@ -39,7 +37,7 @@ class K8sJobEvaluator(
 ) : VerificationEvaluator<K8sJobVerification> {
     private val log by lazy { LoggerFactory.getLogger(javaClass) }
     override val supportedVerification =
-        VERIFICATION_K8S_JOB to K8sJobVerification::class.java
+        VERIFICATION_K8S_JOB_V1 to K8sJobVerification::class.java
 
     override fun evaluate(
         context: ArtifactInEnvironmentContext,
@@ -87,7 +85,7 @@ class K8sJobEvaluator(
                 application = context.deliveryConfig.application,
                 notifications = emptySet(),
                 subject = "verify environment, ${context.environmentName}, for ${context.deliveryConfig.application}",
-                description = "verifying ${context.version} in environment ${context.environmentName} with K8s $VERIFICATION_K8S_JOB",
+                description = "verifying ${context.version} in environment ${context.environmentName} with K8s $VERIFICATION_K8S_JOB_V1",
                 correlationId = verification.id,
                 stages = listOf(job),
                 type = VERIFICATION,
@@ -101,7 +99,24 @@ class K8sJobEvaluator(
         }
     }
 
+    // need to randomize name otherwise subsequent jobs may fail with the same name in the same namespace
+    // orca, clouddriver, or keel cleans finished jobs.
     private fun generateOrcaK8sJob(application: String, verification: K8sJobVerification): OrcaJob {
+        verification.manifest[API_VERSION] = VERIFICATION_K8S_JOB_API_V1
+        verification.manifest[KIND] = VERIFICATION_K8S_JOB_KIND
+
+        val uuid = UUID.randomUUID().toString()
+        val metadata = if (verification.manifest.containsKey("metadata")) {
+            @Suppress("UNCHECKED_CAST")
+            verification.manifest["metadata"] as MutableMap<String, Any>
+        } else {
+            mutableMapOf()
+        }
+
+        metadata[NAME] = verification.jobNamePrefix?.let {
+            "${it}-${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
+        } ?: "${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
+
         return OrcaJob(
             VERIFICATION_K8S_TYPE,
             mapOf(
