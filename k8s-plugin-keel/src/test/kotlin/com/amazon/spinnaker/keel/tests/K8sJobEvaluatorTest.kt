@@ -58,7 +58,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
     environments:
     - name: test
       verifyWith:
-      - account: deploy-experiements
+      - account: deploy-experiments
         type: k8s/job@v1
         manifest: 
           metadata:
@@ -123,12 +123,24 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     "123", "somename", "fnord", Instant.now(), null, null, OrcaExecutionStatus.SUCCEEDED
                 )
                 val actionState = ActionState(
-                    ConstraintStatus.PENDING, Instant.now(), null, mapOf("taskId" to "123", "taskName" to "somename")
+                    ConstraintStatus.PENDING, Instant.now(), null, mapOf(
+                        "taskId" to "123",
+                        "taskName" to "somename",
+                        "namespace" to NAMESPACE_DEFAULT,
+                        "jobName" to "jobName"
+                    )
                 )
                 val result = evaluate(mockk(), deliveryConfig.environments.first().verifyWith.first(), actionState)
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PASS)
-                expectThat(result.metadata).isEqualTo(mapOf("taskId" to "123", "taskName" to "somename"))
+                expectThat(result.metadata).isEqualTo(
+                    mapOf(
+                        "taskId" to "123",
+                        "taskName" to "somename",
+                        "namespace" to NAMESPACE_DEFAULT,
+                        "jobName" to "jobName"
+                    )
+                )
             }
 
             test("pending verification") {
@@ -160,7 +172,10 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 )
 
                 val result = start(context, deliveryConfig.environments.first().verifyWith.first())
-                expectThat(result).isEqualTo(mapOf("taskId" to "123", "taskName" to "somename"))
+                expectThat(result["taskId"]).isEqualTo("123")
+                expectThat(result["taskName"]).isEqualTo("somename")
+                expectThat(result["jobName"] as String).startsWith("deploy-experiments")
+                expectThat(result[NAMESPACE]).isEqualTo(NAMESPACE_DEFAULT)
 
                 expectThat(slot.captured.size).isEqualTo(1)
                 expectThat(slot.captured.first()["type"]).isEqualTo(VERIFICATION_K8S_TYPE)
@@ -198,6 +213,24 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 expectThat(name.toLowerCase()).isEqualTo(name)
                 expectThat(name.contains("/")).isFalse()
                 expectThat(metadata["some"]).isEqualTo("value")
+            }
+
+            test("correct namespace returned") {
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val verification = (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification)
+                (verification.manifest["metadata"] as MutableMap<String, Any>)[NAMESPACE] = "testing"
+
+                coEvery {
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                } returns Task("123", "somename")
+                val context = ArtifactInEnvironmentContext(
+                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                    )
+                )
+                val result = start(context, verification)
+                expectThat(result[NAMESPACE]).isEqualTo("testing")
             }
         }
 

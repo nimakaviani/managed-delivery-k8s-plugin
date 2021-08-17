@@ -51,12 +51,13 @@ class K8sJobEvaluator(
         require(taskId is String) {
             "task ID could not be cast to string. please open an issue if you see this error message"
         }
+        log.info("checking status of verification. taskId: $taskId, namespace: ${oldState.metadata[NAMESPACE]}, jobName: ${oldState.metadata["jobName"]}")
         val response = runBlocking(Dispatchers.IO) {
             try {
                 orcaService.getOrchestrationExecution(taskId)
             } catch (e: HttpException) {
                 if (e.code() == 404) {
-                    log.warn("task with task id $taskId not found. verification: $verification, metadata: ${oldState.metadata}")
+                    log.warn("task with task id $taskId not found. metadata: ${oldState.metadata} verification: $verification")
                     null
                 } else {
                     throw e
@@ -66,9 +67,15 @@ class K8sJobEvaluator(
         log.debug("response from orca for task $taskId: $response")
         response?.let {
             return when {
-                response.status.isSuccess() -> oldState.copy(status = ConstraintStatus.PASS)
-                response.status.isIncomplete() -> oldState.copy(ConstraintStatus.PENDING)
-                else -> oldState.copy(ConstraintStatus.FAIL)
+                response.status.isSuccess() -> oldState.copy(status = ConstraintStatus.PASS).also {
+                    log.info("verification was successful. taskId: $taskId")
+                }
+                response.status.isIncomplete() -> oldState.copy(ConstraintStatus.PENDING).also {
+                    log.debug("verification still in progress. taskId: $taskId")
+                }
+                else -> oldState.copy(ConstraintStatus.FAIL).also {
+                    log.warn("verification failed. taskId: $taskId")
+                }
             }
         } ?: return oldState.copy(status = ConstraintStatus.FAIL)
     }
@@ -77,8 +84,9 @@ class K8sJobEvaluator(
         require(verification is K8sJobVerification) {
             "verification class must be ${K8sJobVerification::class.simpleName}. received: ${verification.javaClass.simpleName}"
         }
-        log.debug("launching verification K8s job for ${context.deliveryConfig.application} env: ${context.environmentName}")
-        val job = generateOrcaK8sJob(context.deliveryConfig.application, verification)
+        log.info("launching verification K8s job for ${context.deliveryConfig.application} env: ${context.environmentName}")
+        val (job, metadata) = generateOrcaK8sJob(context.deliveryConfig.application, verification)
+        log.info("this job will be launched in namespace, ${metadata[NAMESPACE]}. Name: ${metadata["jobName"]}")
         return runBlocking {
             val launcherResponse = taskLauncher.submitJob(
                 user = context.deliveryConfig.serviceAccount,
@@ -92,16 +100,14 @@ class K8sJobEvaluator(
                 artifacts = emptyList(),
                 parameters = emptyMap()
             )
-            mapOf(
-                "taskId" to launcherResponse.id,
-                "taskName" to launcherResponse.name
-            )
+            metadata += ("taskId" to launcherResponse.id)
+            metadata + ("taskName" to launcherResponse.name)
         }
     }
 
     // need to randomize name otherwise subsequent jobs may fail with the same name in the same namespace
-    // orca, clouddriver, or keel cleans finished jobs.
-    private fun generateOrcaK8sJob(application: String, verification: K8sJobVerification): OrcaJob {
+    // neither orca, clouddriver, nor keel cleans finished jobs.
+    private fun generateOrcaK8sJob(application: String, verification: K8sJobVerification): Pair<OrcaJob, MutableMap<String, String>> {
         verification.manifest[API_VERSION] = VERIFICATION_K8S_JOB_API_V1
         verification.manifest[KIND] = VERIFICATION_K8S_JOB_KIND
 
@@ -117,6 +123,9 @@ class K8sJobEvaluator(
             "${it}-${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
         } ?: "${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
 
+        val namespace = metadata[NAMESPACE] ?: NAMESPACE_DEFAULT
+        log.debug("set job name to ${metadata[NAME]}, namespace: $namespace")
+
         return OrcaJob(
             VERIFICATION_K8S_TYPE,
             mapOf(
@@ -128,6 +137,9 @@ class K8sJobEvaluator(
                 "manifest" to verification.manifest,
                 "source" to SOURCE_TYPE
             )
+        ) to mutableMapOf(
+            "jobName" to metadata[NAME] as String,
+            NAMESPACE to namespace as String
         )
     }
 }
