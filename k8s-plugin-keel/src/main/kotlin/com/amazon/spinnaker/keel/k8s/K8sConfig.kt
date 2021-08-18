@@ -65,6 +65,7 @@ const val VERIFICATION_K8S_JOB_V1: String = "k8s/job@v1"
 const val VERIFICATION_K8S_TYPE: String = "runJobManifest"
 const val VERIFICATION_K8S_JOB_KIND: String = "Job"
 const val VERIFICATION_K8S_JOB_API_V1: String = "batch/v1"
+const val VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH: Int = 8
 
 enum class FluxSupportedSourceType {
     GIT { override fun fluxKind(): String = "GitRepository" },

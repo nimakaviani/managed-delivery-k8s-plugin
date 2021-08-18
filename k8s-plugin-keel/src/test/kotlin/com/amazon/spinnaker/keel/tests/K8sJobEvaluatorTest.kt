@@ -174,7 +174,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 val result = start(context, deliveryConfig.environments.first().verifyWith.first())
                 expectThat(result["taskId"]).isEqualTo("123")
                 expectThat(result["taskName"]).isEqualTo("somename")
-                expectThat(result["jobName"] as String).startsWith("deploy-experiments")
+                expectThat(result["jobName"] as String).startsWith("verify-fnord-test")
                 expectThat(result[NAMESPACE]).isEqualTo(NAMESPACE_DEFAULT)
 
                 expectThat(slot.captured.size).isEqualTo(1)
@@ -187,6 +187,40 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 val metadata = manifest["metadata"] as Map<String, Any>
                 expectThat(metadata[NAME]).isNotEqualTo("pi")
                 expectThat(metadata["some"]).isEqualTo("value")
+                val labels = metadata[LABELS] as Map<String, String>
+                MANAGED_DELIVERY_PLUGIN_LABELS.forEach {
+                    expectThat(labels[it.first]).isEqualTo(it.second)
+                }
+            }
+
+            test("labels preserved") {
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val slot = slot<List<Job>>()
+                coEvery {
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                } returns Task("123", "somename")
+                val context = ArtifactInEnvironmentContext(
+                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                    )
+                )
+                val originalLabels = mapOf("label1" to "value1", "label2" to "value2")
+                val originalMetadata =
+                    (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification).manifest["metadata"] as MutableMap<String, Any>
+                originalMetadata["labels"] = originalLabels
+
+                start(context, deliveryConfig.environments.first().verifyWith.first())
+
+                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
+                val metadata = manifest["metadata"] as Map<String, Any>
+                val labels = metadata[LABELS] as Map<String, String>
+                MANAGED_DELIVERY_PLUGIN_LABELS.forEach {
+                    expectThat(labels[it.first]).isEqualTo(it.second)
+                }
+                originalLabels.forEach { (k, v) ->
+                    expectThat(labels[k]).isEqualTo(v)
+                }
             }
 
             test("name is trimmed and name prefix applied") {
@@ -204,15 +238,44 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                         "artifactName", "Docker", "123`", "my-docker-artifact"
                     )
                 )
-                start(context, verification.copy(account = longString, jobNamePrefix = "tEstIngPrefix"))
+
+                start(context, verification.copy(jobNamePrefix = "tEstiNgpRefix-$longString"))
+
                 val manifest = slot.captured.first()["manifest"] as Map<String, Any>
                 val metadata = manifest["metadata"] as Map<String, Any>
                 val name = metadata["name"] as String
-                expectThat(name.length).isEqualTo(252)
+                expectThat(name.length).isEqualTo(63)
                 expectThat(name.startsWith("testingprefix")).isTrue()
                 expectThat(name.toLowerCase()).isEqualTo(name)
-                expectThat(name.contains("/")).isFalse()
+                expectThat(name.contains(" ")).isFalse()
                 expectThat(metadata["some"]).isEqualTo("value")
+            }
+
+            test("name does not contain application or environment name") {
+                val longString = getRandomString(240)
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val verification = (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification)
+
+                val slot = slot<List<Job>>()
+                coEvery {
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                } returns Task("123", "somename")
+                val context = ArtifactInEnvironmentContext(
+                    deliveryConfig.copy(application = longString),
+                    deliveryConfig.environments.first(),
+                    PublishedArtifact(
+                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                    )
+                )
+
+                start(context, verification)
+
+                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
+                val metadata = manifest["metadata"] as Map<String, Any>
+                val name = metadata["name"] as String
+                expectThat(name.length).isEqualTo("verify-".length + VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH)
+                expectThat(name.startsWith("verify")).isTrue()
             }
 
             test("correct namespace returned") {
@@ -229,6 +292,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                         "artifactName", "Docker", "123`", "my-docker-artifact"
                     )
                 )
+
                 val result = start(context, verification)
                 expectThat(result[NAMESPACE]).isEqualTo("testing")
             }

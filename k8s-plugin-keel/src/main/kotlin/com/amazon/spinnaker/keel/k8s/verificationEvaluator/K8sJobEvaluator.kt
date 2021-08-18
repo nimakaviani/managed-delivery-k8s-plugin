@@ -29,7 +29,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import retrofit2.HttpException
-import java.util.*
 
 class K8sJobEvaluator(
     private val taskLauncher: TaskLauncher,
@@ -85,7 +84,12 @@ class K8sJobEvaluator(
             "verification class must be ${K8sJobVerification::class.simpleName}. received: ${verification.javaClass.simpleName}"
         }
         log.info("launching verification K8s job for ${context.deliveryConfig.application} env: ${context.environmentName}")
-        val (job, metadata) = generateOrcaK8sJob(context.deliveryConfig.application, verification)
+        val (job, metadata) = generateOrcaK8sJob(
+            context.deliveryConfig.application,
+            context.environmentName,
+            verification
+        )
+
         log.info("this job will be launched in namespace, ${metadata[NAMESPACE]}. Name: ${metadata["jobName"]}")
         return runBlocking {
             val launcherResponse = taskLauncher.submitJob(
@@ -107,11 +111,14 @@ class K8sJobEvaluator(
 
     // need to randomize name otherwise subsequent jobs may fail with the same name in the same namespace
     // neither orca, clouddriver, nor keel cleans finished jobs.
-    private fun generateOrcaK8sJob(application: String, verification: K8sJobVerification): Pair<OrcaJob, MutableMap<String, String>> {
+    private fun generateOrcaK8sJob(
+        application: String,
+        environment: String,
+        verification: K8sJobVerification
+    ): Pair<OrcaJob, MutableMap<String, String>> {
         verification.manifest[API_VERSION] = VERIFICATION_K8S_JOB_API_V1
         verification.manifest[KIND] = VERIFICATION_K8S_JOB_KIND
 
-        val uuid = UUID.randomUUID().toString()
         val metadata = if (verification.manifest.containsKey("metadata")) {
             @Suppress("UNCHECKED_CAST")
             verification.manifest["metadata"] as MutableMap<String, Any>
@@ -119,13 +126,11 @@ class K8sJobEvaluator(
             mutableMapOf()
         }
 
-        metadata[NAME] = verification.jobNamePrefix?.let {
-            "${it}-${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
-        } ?: "${verification.id}-$uuid}".replace("/", "-").toLowerCase().take(252)
-
+        metadata[NAME] = generateJobName(application, environment, verification.jobNamePrefix)
         val namespace = metadata[NAMESPACE] ?: NAMESPACE_DEFAULT
+        addLabels(metadata)
+        verification.manifest["metadata"] = metadata
         log.debug("set job name to ${metadata[NAME]}, namespace: $namespace")
-
         return OrcaJob(
             VERIFICATION_K8S_TYPE,
             mapOf(
@@ -141,5 +146,37 @@ class K8sJobEvaluator(
             "jobName" to metadata[NAME] as String,
             NAMESPACE to namespace as String
         )
+    }
+
+    private fun getRandomString(length: Int): String {
+        val allowedChars = ('a'..'z') + ('0'..'9')
+        return (1..length)
+            .map { allowedChars.random() }
+            .joinToString("")
+    }
+
+    // job name must be less than 64 chars
+    private fun generateJobName(application: String, environment: String, prefix: String?): String {
+        var jobName = "verify-$application-$environment"
+        if (jobName.length >= 63 - VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH) {
+            jobName = "verify"
+        }
+        jobName = "$jobName-${getRandomString(VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH)}"
+        return prefix?.let { prefixString ->
+            "${prefixString.take(62 - jobName.length)}-$jobName".toLowerCase().filterNot {it.isWhitespace()}
+        } ?: jobName.toLowerCase().filterNot {it.isWhitespace()}
+    }
+
+    private fun addLabels(metadata: MutableMap<String, Any>) {
+        val labels = metadata[LABELS]?.let {
+            @Suppress("UNCHECKED_CAST")
+            it as MutableMap<String, String>
+        } ?: run {
+            mutableMapOf()
+        }
+        MANAGED_DELIVERY_PLUGIN_LABELS.forEach { label ->
+            labels[label.first] = label.second
+        }
+        metadata[LABELS] = labels
     }
 }
