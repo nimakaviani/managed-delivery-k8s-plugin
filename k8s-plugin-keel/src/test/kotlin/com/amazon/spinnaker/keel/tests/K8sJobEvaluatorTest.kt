@@ -49,7 +49,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
     ---
     name: demo1
     application: fnord
-    serviceAccount: keel@spinnaker.io
+    serviceAccount: keel-service-account
     artifacts:
       - name: example/service
         type: docker
@@ -118,7 +118,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
             test("successful verification") {
                 coEvery {
-                    orcaService.getOrchestrationExecution("123", any())
+                    orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } returns ExecutionDetailResponse(
                     "123", "somename", "fnord", Instant.now(), null, null, OrcaExecutionStatus.SUCCEEDED
                 )
@@ -130,7 +130,8 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                         "jobName" to "jobName"
                     )
                 )
-                val result = evaluate(mockk(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+
+                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PASS)
                 expectThat(result.metadata).isEqualTo(
@@ -152,7 +153,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 val actionState = ActionState(
                     ConstraintStatus.PASS, Instant.now(), null, mapOf("taskId" to "123", "taskName" to "somename")
                 )
-                val result = evaluate(mockk(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PENDING)
             }
@@ -310,26 +311,26 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
             test("404 results in failure") {
                 coEvery {
-                    orcaService.getOrchestrationExecution("123", "keel@spinnaker.io")
+                    orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(notFound)
 
-                val result = evaluate(mockk(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.FAIL)
             }
 
             test("http error is returned by evaluate") {
                 coEvery {
-                    orcaService.getOrchestrationExecution("123", "keel@spinnaker.io")
+                    orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(badRequest)
                 expectCatching {
-                    evaluate(mockk(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                    evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
                 }.failed().isA<HttpException>()
             }
 
             test("http error is returned by start") {
                 coEvery {
-                    orcaService.getOrchestrationExecution("123", "keel@spinnaker.io")
+                    orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(notFound)
                 coEvery {
                     taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -345,5 +346,13 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 }.failed().isA<HttpException>()
             }
         }
+    }
+
+    private fun generateArtifactContext(): ArtifactInEnvironmentContext {
+        val deliveryConfig =
+            yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+        return ArtifactInEnvironmentContext(deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+            "artifactName", "Docker", "123`", "my-docker-artifact"
+        ))
     }
 }

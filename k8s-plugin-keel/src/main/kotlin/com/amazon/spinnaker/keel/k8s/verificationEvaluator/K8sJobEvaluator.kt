@@ -53,7 +53,7 @@ class K8sJobEvaluator(
         log.info("checking status of verification. taskId: $taskId, namespace: ${oldState.metadata[NAMESPACE]}, jobName: ${oldState.metadata["jobName"]}")
         val response = runBlocking(Dispatchers.IO) {
             try {
-                orcaService.getOrchestrationExecution(taskId)
+                orcaService.getOrchestrationExecution(taskId, context.deliveryConfig.serviceAccount)
             } catch (e: HttpException) {
                 if (e.code() == 404) {
                     log.warn("task with task id $taskId not found. metadata: ${oldState.metadata} verification: $verification")
