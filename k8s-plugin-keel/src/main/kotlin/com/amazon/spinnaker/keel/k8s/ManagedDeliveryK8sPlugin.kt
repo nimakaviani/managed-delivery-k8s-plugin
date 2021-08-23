@@ -18,6 +18,7 @@ import com.amazon.spinnaker.keel.k8s.artifactSupplier.GitArtifactSupplier
 import com.amazon.spinnaker.keel.k8s.resolver.*
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sServiceSupplier
 import com.amazon.spinnaker.keel.k8s.service.IgorArtifactServiceSupplier
+import com.amazon.spinnaker.keel.k8s.verificationEvaluator.K8sJobEvaluator
 import com.netflix.spinnaker.kork.plugins.api.spring.PrivilegedSpringPlugin
 import org.pf4j.PluginWrapper
 import org.springframework.beans.factory.support.BeanDefinitionRegistry
@@ -42,7 +43,8 @@ class ManagedDeliveryK8sPlugin(wrapper: PluginWrapper) : PrivilegedSpringPlugin(
                 beanDefinitionFor(DockerImageResolver::class.java),
                 beanDefinitionFor(CredentialsResourceHandler::class.java),
                 beanDefinitionFor(GitArtifactSupplier::class.java),
-                beanDefinitionFor(KustomizeResourceHandler::class.java)
+                beanDefinitionFor(KustomizeResourceHandler::class.java),
+                beanDefinitionFor(K8sJobEvaluator::class.java)
         ).forEach {
             registerBean(it, registry)
         }

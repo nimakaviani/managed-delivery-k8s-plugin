@@ -34,11 +34,13 @@ const val SOURCE_TYPE = "text"
 
 const val K8S_LAST_APPLIED_CONFIG: String = "kubectl.kubernetes.io/last-applied-configuration"
 
+const val API_VERSION: String = "apiVersion"
 const val KIND: String = "kind"
 const val NAME: String = "name"
 const val NAMESPACE: String = "namespace"
 const val TYPE: String = "type"
 const val SPEC: String = "spec"
+const val GENERATE_NAME: String = "generateName"
 const val CLOUDDRIVER_ACCOUNT = "account"
 const val NAMESPACE_DEFAULT: String = "default"
 const val ANNOTATIONS: String = "annotations"
@@ -59,6 +61,13 @@ const val FLUX_KUSTOMIZE_API_VERSION: String = "kustomize.toolkit.fluxcd.io/v1be
 const val FLUX_KUSTOMIZE_KIND: String = "Kustomization"
 const val FLUX_SECRETS_TOKEN_USERNAME: String = "token-user"
 const val FLUX_SOURCE_API_VERSION: String = "source.toolkit.fluxcd.io/v1beta1"
+
+const val VERIFICATION_K8S_JOB_V1: String = "k8s/job@v1"
+const val VERIFICATION_K8S_TYPE: String = "runJobManifest"
+const val VERIFICATION_K8S_JOB_KIND: String = "Job"
+const val VERIFICATION_K8S_JOB_API_V1: String = "batch/v1"
+const val VERIFICATION_ENVIRONMENT_LABEL: String = "md.spinnaker.io/verify-environment"
+const val VERIFICATION_ARTIFACT_LABEL: String = "md.spinnaker.io/verify-artifact"
 
 enum class FluxSupportedSourceType {
     GIT { override fun fluxKind(): String = "GitRepository" },
