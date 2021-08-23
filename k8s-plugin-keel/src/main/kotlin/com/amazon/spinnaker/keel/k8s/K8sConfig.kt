@@ -40,6 +40,7 @@ const val NAME: String = "name"
 const val NAMESPACE: String = "namespace"
 const val TYPE: String = "type"
 const val SPEC: String = "spec"
+const val GENERATE_NAME: String = "generateName"
 const val CLOUDDRIVER_ACCOUNT = "account"
 const val NAMESPACE_DEFAULT: String = "default"
 const val ANNOTATIONS: String = "annotations"
@@ -65,7 +66,8 @@ const val VERIFICATION_K8S_JOB_V1: String = "k8s/job@v1"
 const val VERIFICATION_K8S_TYPE: String = "runJobManifest"
 const val VERIFICATION_K8S_JOB_KIND: String = "Job"
 const val VERIFICATION_K8S_JOB_API_V1: String = "batch/v1"
-const val VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH: Int = 8
+const val VERIFICATION_ENVIRONMENT_LABEL: String = "md.spinnaker.io/verify-environment"
+const val VERIFICATION_ARTIFACT_LABEL: String = "md.spinnaker.io/verify-artifact"
 
 enum class FluxSupportedSourceType {
     GIT { override fun fluxKind(): String = "GitRepository" },

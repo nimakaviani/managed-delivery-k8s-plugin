@@ -17,7 +17,6 @@ package com.amazon.spinnaker.keel.tests
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.model.K8sJobVerification
 import com.amazon.spinnaker.keel.k8s.verificationEvaluator.K8sJobEvaluator
-import com.amazon.spinnaker.keel.tests.testUtils.getRandomString
 import com.netflix.spinnaker.keel.api.ArtifactInEnvironmentContext
 import com.netflix.spinnaker.keel.api.action.ActionState
 import com.netflix.spinnaker.keel.api.actuation.Job
@@ -43,6 +42,15 @@ import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.assertions.*
 import java.time.Instant
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.MutableMap
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.first
+import kotlin.collections.forEach
+import kotlin.collections.mapOf
+import kotlin.collections.set
 
 internal class K8sJobEvaluatorTest : JUnit5Minutests {
     private val deliveryConfigYaml = """
@@ -131,7 +139,11 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     )
                 )
 
-                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                val result = evaluate(
+                    generateArtifactContext(),
+                    deliveryConfig.environments.first().verifyWith.first(),
+                    actionState
+                )
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PASS)
                 expectThat(result.metadata).isEqualTo(
@@ -153,7 +165,11 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 val actionState = ActionState(
                     ConstraintStatus.PASS, Instant.now(), null, mapOf("taskId" to "123", "taskName" to "somename")
                 )
-                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                val result = evaluate(
+                    generateArtifactContext(),
+                    deliveryConfig.environments.first().verifyWith.first(),
+                    actionState
+                )
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.PENDING)
             }
@@ -168,14 +184,14 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 } returns Task("123", "somename")
                 val context = ArtifactInEnvironmentContext(
                     deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                        "artifactName", "Docker", "123", "my-docker-artifact"
                     )
                 )
 
                 val result = start(context, deliveryConfig.environments.first().verifyWith.first())
                 expectThat(result["taskId"]).isEqualTo("123")
                 expectThat(result["taskName"]).isEqualTo("somename")
-                expectThat(result["jobName"] as String).startsWith("verify-fnord-test")
+                expectThat(result["jobNamePrefix"] as String).isEqualTo("verify-fnord-test-123")
                 expectThat(result[NAMESPACE]).isEqualTo(NAMESPACE_DEFAULT)
 
                 expectThat(slot.captured.size).isEqualTo(1)
@@ -186,12 +202,17 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 expectThat(manifest[KIND]).isEqualTo(VERIFICATION_K8S_JOB_KIND)
 
                 val metadata = manifest["metadata"] as Map<String, Any>
-                expectThat(metadata[NAME]).isNotEqualTo("pi")
+                expectThat(metadata[NAME]).isNull()
                 expectThat(metadata["some"]).isEqualTo("value")
+                expectThat(metadata["generateName"] as String).isEqualTo("verify-fnord-test-123")
+
                 val labels = metadata[LABELS] as Map<String, String>
                 MANAGED_DELIVERY_PLUGIN_LABELS.forEach {
                     expectThat(labels[it.first]).isEqualTo(it.second)
                 }
+                expectThat(labels[VERIFICATION_ENVIRONMENT_LABEL]).isEqualTo("test")
+                expectThat(labels[VERIFICATION_ARTIFACT_LABEL]).isEqualTo("123")
+
             }
 
             test("labels preserved") {
@@ -203,7 +224,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 } returns Task("123", "somename")
                 val context = ArtifactInEnvironmentContext(
                     deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                        "artifactName", "Docker", "123", "my-docker-artifact"
                     )
                 )
                 val originalLabels = mapOf("label1" to "value1", "label2" to "value2")
@@ -224,61 +245,6 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 }
             }
 
-            test("name is trimmed and name prefix applied") {
-                val longString = getRandomString(240)
-                val deliveryConfig =
-                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
-                val verification = (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification)
-
-                val slot = slot<List<Job>>()
-                coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
-                } returns Task("123", "somename")
-                val context = ArtifactInEnvironmentContext(
-                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
-                    )
-                )
-
-                start(context, verification.copy(jobNamePrefix = "tEstiNgpRefix-$longString"))
-
-                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
-                val metadata = manifest["metadata"] as Map<String, Any>
-                val name = metadata["name"] as String
-                expectThat(name.length).isEqualTo(63)
-                expectThat(name.startsWith("testingprefix")).isTrue()
-                expectThat(name.toLowerCase()).isEqualTo(name)
-                expectThat(name.contains(" ")).isFalse()
-                expectThat(metadata["some"]).isEqualTo("value")
-            }
-
-            test("name does not contain application or environment name") {
-                val longString = getRandomString(240)
-                val deliveryConfig =
-                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
-                val verification = (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification)
-
-                val slot = slot<List<Job>>()
-                coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
-                } returns Task("123", "somename")
-                val context = ArtifactInEnvironmentContext(
-                    deliveryConfig.copy(application = longString),
-                    deliveryConfig.environments.first(),
-                    PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
-                    )
-                )
-
-                start(context, verification)
-
-                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
-                val metadata = manifest["metadata"] as Map<String, Any>
-                val name = metadata["name"] as String
-                expectThat(name.length).isEqualTo("verify-".length + VERIFICATION_K8S_JOB_NAME_SUFFIX_LENGTH)
-                expectThat(name.startsWith("verify")).isTrue()
-            }
-
             test("correct namespace returned") {
                 val deliveryConfig =
                     yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
@@ -290,7 +256,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 } returns Task("123", "somename")
                 val context = ArtifactInEnvironmentContext(
                     deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
+                        "artifactName", "Docker", "123", "my-docker-artifact"
                     )
                 )
 
@@ -314,7 +280,11 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(notFound)
 
-                val result = evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                val result = evaluate(
+                    generateArtifactContext(),
+                    deliveryConfig.environments.first().verifyWith.first(),
+                    actionState
+                )
 
                 expectThat(result.status).isEqualTo(ConstraintStatus.FAIL)
             }
@@ -324,7 +294,11 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(badRequest)
                 expectCatching {
-                    evaluate(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first(), actionState)
+                    evaluate(
+                        generateArtifactContext(),
+                        deliveryConfig.environments.first().verifyWith.first(),
+                        actionState
+                    )
                 }.failed().isA<HttpException>()
             }
 
@@ -336,13 +310,8 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
                 } throws HttpException(badRequest)
 
-                val context = ArtifactInEnvironmentContext(
-                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-                        "artifactName", "Docker", "123`", "my-docker-artifact"
-                    )
-                )
                 expectCatching {
-                    start(context, deliveryConfig.environments.first().verifyWith.first())
+                    start(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first())
                 }.failed().isA<HttpException>()
             }
         }
@@ -351,8 +320,10 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
     private fun generateArtifactContext(): ArtifactInEnvironmentContext {
         val deliveryConfig =
             yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
-        return ArtifactInEnvironmentContext(deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
-            "artifactName", "Docker", "123`", "my-docker-artifact"
-        ))
+        return ArtifactInEnvironmentContext(
+            deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+                "artifactName", "Docker", "123", "my-docker-artifact"
+            )
+        )
     }
 }

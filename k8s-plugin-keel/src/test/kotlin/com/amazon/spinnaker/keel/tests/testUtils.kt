@@ -70,10 +70,10 @@ object testUtils {
     fun generateYamlMapper(): ObjectMapper {
         val yamlMapper = configuredYamlMapper()
         yamlMapper.registerSubtypes(
-            NamedType(GitRepoArtifact::class.java, "git"),
+            NamedType(GitRepoArtifact::class.java, FluxSupportedSourceType.GIT.name.toLowerCase()),
             NamedType(DockerArtifact::class.java, "docker"),
-            NamedType(KustomizeResourceSpec::class.java, "k8s/kustomize@v1"),
-            NamedType(HelmResourceSpec::class.java, "k8s/helm@v1"),
+            NamedType(KustomizeResourceSpec::class.java, KUSTOMIZE_RESOURCE_SPEC_V1.kind.toString()),
+            NamedType(HelmResourceSpec::class.java, HELM_RESOURCE_SPEC_V1.kind.toString()),
             NamedType(K8sJobVerification::class.java, VERIFICATION_K8S_JOB_V1)
         )
         yamlMapper.addMixIn(
@@ -108,12 +108,5 @@ object testUtils {
             status = emptyMap(),
             warnings = emptyList()
         )
-    }
-
-    fun getRandomString(length: Int) : String {
-        val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
-        return (1..length)
-            .map { allowedChars.random() }
-            .joinToString("")
     }
 }
