@@ -48,6 +48,13 @@ class KustomizeResourceHandler(
         log.debug("attempting to resolve resource for git")
 
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
+        if (artifact == null) {
+            resource.spec.template = toK8sList(
+                null, resource.spec.template, generateCorrelationId(resource)
+            )
+            return super.toResolvedType(resource)
+        }
+
         // Kustomize controller only supports GitRepository as source
         if (artifact !is GitRepoArtifact) {
             throw InvalidArtifact("provided artifact is not a GitRepository artifact.")
@@ -57,6 +64,7 @@ class KustomizeResourceHandler(
         val version = repository.latestVersionApprovedIn(
             deliveryConfig, artifact, environment.name
         ) ?: throw NoVersionAvailable(artifact.name, artifact.type)
+
         log.debug("found deployable version: $version")
         val resolvedArtifact = resolveArtifactSpec(resource, artifact)
         val sourceRef = mapOf(

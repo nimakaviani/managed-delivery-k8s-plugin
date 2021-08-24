@@ -19,10 +19,10 @@ import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
 import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
 
 abstract class BaseFluxResourceSpec:  ArtifactReferenceProvider, GenericK8sLocatable {
-    abstract val artifactSpec: ArtifactSpec
+    abstract val artifactSpec: ArtifactSpec?
 
     override val artifactReference: String
-        get() = artifactSpec.ref
+        get() = artifactSpec?.ref ?: "none-specified"
 
     override val artifactType: ArtifactType
         get() = FluxSupportedSourceType.GIT.name.toLowerCase()

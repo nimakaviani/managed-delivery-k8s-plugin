@@ -47,6 +47,13 @@ class HelmResourceHandler(
     public override suspend fun toResolvedType(resource: Resource<HelmResourceSpec>): K8sObjectManifest {
         verifyChartResource(resource)
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
+        if (artifact == null) {
+            resource.spec.template = toK8sList(
+                null, resource.spec.template, generateCorrelationId(resource)
+            )
+            return super.toResolvedType(resource)
+        }
+
         val environment = repository.environmentFor(resource.id)
         val version = repository.latestVersionApprovedIn(
             deliveryConfig, artifact, environment.name
@@ -77,8 +84,6 @@ class HelmResourceHandler(
             else -> throw InvalidArtifact("artifact version $version is not a supported artifact type. artifact: $artifact")
         }
 
-        resource.spec.template.spec
-
         // sending it to the super class for common labels and annotations to be added
         return super.toResolvedType(resource)
     }
@@ -93,6 +98,7 @@ class HelmResourceHandler(
                     )
                 }
             }
+            @Suppress("UNCHECKED_CAST")
             (it[FLUX_CHART] as Map<String, Any>)[SPEC]?.let { specMap ->
                 val chartSpec = specMap as Map<String, Any>
                 if (!chartSpec.containsKey(FLUX_CHART)) {
