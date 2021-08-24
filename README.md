@@ -540,10 +540,10 @@ environments:
     resources: []
 ```
 
-The Kubernetes job name is generated as `<PREFIX>-verify-<APPLICATION>-<ENVIRONMENT>-<ARTIFACT_VERSION><RANDOM_5_CHARS>"`
-For the specification above with artifact version 10, the name is generated as `my-prefix-verify-testapp-dev-10`
+The Kubernetes job name is generated as `<PREFIX>-verify-<APPLICATION>-<ENVIRONMENT>-<ARTIFACT_VERSION>-<RANDOM_5_CHARS>"`
+As an example, for the yaml specification above with a given artifact version `10`, a generated name could look something like the following: `my-prefix-verify-testapp-dev-10-uvxyz`
 
-Jobs specified under `verifyWith` are executed after artifact promotion and environment is successfully matched to desired state.
+Jobs specified under `verifyWith` are executed after artifact promotion and when the environment is successfully matched to the desired end state.
 
 If the `manifest.metadata.generateName`field is supplied, plugin will not generate name and the name is generated as specified in the filed.
 
@@ -601,7 +601,7 @@ spinnaker:
 
 ## Troubleshooting
 ### Kubernetes Resource Handling
-### Discovering Resources
+#### Discovering Resources
 
 - All kubernetes resources deployed via the plugin are labeled with the label `md.spinnaker.io/plugin: k8s`.
 - Spinnaker's clouddriver labels deployed resources with the name of the application, e.g. for
@@ -621,7 +621,7 @@ kubectl get job -l md.spinnaker.io/verify-environment=dev -A
 ```
 
 
-### Cleaning up resources
+#### Cleaning up resources
 Currently, Keel does not remove resources even when a resource was deleted from its resource definitions.
 As a result, Kubernetes resources are not removed automatically. If you wish to remove resources created by this plugin,
 you need to search using labels described above. 
