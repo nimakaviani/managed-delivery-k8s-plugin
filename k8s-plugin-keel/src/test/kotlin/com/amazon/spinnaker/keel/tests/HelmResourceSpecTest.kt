@@ -37,8 +37,6 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                 Fixture(
                     yaml = """
                         |---
-                        |chart:
-                        |  reference: something
                         |locations:
                         |  account: my-k8s-west-account
                         |  regions: []
@@ -76,11 +74,6 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                 test("stores correct application metadata from the spec") {
                     expectThat(this)
                         .get { metadata["application"] }.isEqualTo("fnord")
-                }
-
-                test("has chart information properly stored") {
-                    expectThat(this)
-                        .get { chart?.reference }.isEqualTo("something")
                 }
             }
         }

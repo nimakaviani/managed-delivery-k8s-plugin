@@ -1,0 +1,37 @@
+name: demo1
+application: fnord
+serviceAccount: keeltest-service-account
+artifacts:
+  - type: git
+    reference: my-git-artifact
+    tagVersionStrategy: semver-tag
+    repoName: testRepo
+    project: testProject
+    gitType: github
+    secretRef: git-repo
+environments:
+  - name: test
+    locations:
+      account: deploy-experiments
+      regions: []
+    resources:
+      - kind: k8s/helm@v1
+        spec:
+          artifactSpec:
+            ref: my-git-artifact
+          metadata:
+            application: fnord
+          template:
+            metadata:
+              name: crossplane
+              namespace: flux-system
+            spec:
+              releaseName: crossplane
+              targetNamespace: crossplane-system
+              chart:
+                spec:
+                  chart: crossplane
+              interval: 1m
+              install:
+                remediation:
+                  retries: 3

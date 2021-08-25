@@ -75,209 +75,17 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         K8sResolver()
     )
 
-    // DeliveryConfig in SQL DB
-    private val deliveryConfigYaml = """
-    ---
-    name: demo1
-    application: fnord
-    serviceAccount: keeltest-service-account
-    artifacts:
-    - type: git
-      reference: my-git-artifact
-      tagVersionStrategy: semver-tag
-      repoName: testRepo
-      project: testProject
-      gitType: github
-      secretRef: git-repo
-    environments:
-    - name: test
-      locations:
-        account: deploy-experiments
-        regions: []
-      resources:
-      - kind: k8s/helm@v1
-        spec:
-          artifactSpec:
-            ref: my-git-artifact
-          metadata:
-            application: fnord
-          template:
-            metadata:
-              name: crossplane
-              namespace: flux-system
-            spec:
-              releaseName: crossplane
-              targetNamespace: crossplane-system
-              chart:
-                spec:
-                  chart: crossplane
-              interval: 1m
-              install:
-                remediation:
-                  retries: 3
-    """.trimIndent()
-
-    private val sqlHelmYaml = """
-    ---
-    locations:
-      account: my-k8s-west-account
-      regions: []
-    metadata:
-      application: fnord
-    artifactSpec:
-      ref: my-git-artifact
-    template:
-      metadata:
-        name: fnord-test
-        namespace: flux-system
-        application: fnord
-      spec:
-        releaseName: crossplane
-        targetNamespace: crossplane-system
-        chart:
-          spec:
-            chart: crossplane
-        interval: 1m
-        install:
-          remediation:
-            retries: 3
-    """.trimIndent()
-
-    private val clouddvierGitRepoYaml = """
-    apiVersion: source.toolkit.fluxcd.io/v1beta1
-    kind: GitRepository
-    metadata:
-      annotations:
-        artifact.spinnaker.io/location: flux-system
-        artifact.spinnaker.io/name: git-github-testProject-testRepo
-        artifact.spinnaker.io/type: kubernetes/GitRepository.source.toolkit.fluxcd.io
-        artifact.spinnaker.io/version: ''
-        moniker.spinnaker.io/application: keeldemo
-        moniker.spinnaker.io/cluster: >-
-          GitRepository.source.toolkit.fluxcd.io
-          git-github-testProject-testRepo
-      labels:
-        app.kubernetes.io/managed-by: spinnaker
-        app.kubernetes.io/name: keeldemo
-        md.spinnaker.io/plugin: k8s
-      name: git-github-testProject-testRepo-testEnv
-      namespace: flux-system
-    spec:
-      interval: 1m
-      ref:
-        tag: 1.0.0
-      secretRef:
-        name: git-repo
-      url: https://repo.url
-    """.trimMargin()
-
-    private val clouddriverHelmYaml = """
-        |---
-        |locations:
-        |  account: my-k8s-west-account
-        |  regions: []
-        |metadata:
-        |  application: fnord
-        |artifactSpec:
-        |  ref: my-git-artifact
-        |template:
-        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
-        |  kind: HelmRelease
-        |  metadata:
-        |    annotations:
-        |      artifact.spinnaker.io/name: git-github-testProject-testRepo
-        |      artifact.spinnaker.io/location: flux-system
-        |      moniker.spinnaker.io/application: keeldemo
-        |    name: fnord-test
-        |    namespace: flux-system
-        |    application: fnord
-        |    labels:
-        |      md.spinnaker.io/plugin: k8s
-        |  spec:
-        |    releaseName: crossplane
-        |    targetNamespace: crossplane-system
-        |    chart:
-        |      spec:
-        |        chart: crossplane
-        |        sourceRef:
-        |          name: git-github-testProject-testRepo-testEnv
-        |          kind: GitRepository
-        |          namespace: flux-system
-        |    interval: 1m
-        |    install:
-        |      remediation:
-        |       retries: 3
-    """.trimMargin()
-
-    private val yaml = """
-        |---
-        |locations:
-        |  account: my-k8s-west-account
-        |  regions: []
-        |metadata:
-        |  application: fnord
-        |template:
-        |  metadata:
-        |    name: hello-kubernetes
-        |  spec:
-        |    url: some-url
-    """.trimMargin()
-
-    private val fullYaml = """
-        |---
-        |locations:
-        |  account: my-k8s-west-account
-        |  regions: []
-        |metadata:
-        |  application: fnord
-        |template:
-        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
-        |  kind: HelmRelease
-        |  metadata:
-        |    name: hello-kubernetes
-        |  spec:
-        |    url: some-url
-    """.trimMargin()
-
-    private val wrongYaml = """
-        |---
-        |locations:
-        |  account: my-k8s-west-account
-        |  regions: []
-        |metadata:
-        |  application: fnord
-        |template:
-        |  apiVersion: something
-        |  kind: HelmRelease
-        |  metadata:
-        |    name: hello-kubernetes
-        |  spec:
-        |    url: some-url
-    """.trimMargin()
-
-    private val expectedYaml = """
-        |---
-        |locations:
-        |  account: my-k8s-west-account
-        |  regions: []
-        |metadata:
-        |  application: fnord
-        |template:
-        |  apiVersion: helm.toolkit.fluxcd.io/v2beta1
-        |  kind: HelmRelease
-        |  metadata:
-        |    name: hello-kubernetes
-        |    labels:
-        |      md.spinnaker.io/plugin: k8s
-        |  spec:
-        |    url: some-url
-    """.trimMargin()
-
-    val deliveryConfig =
-        yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).makeDeliveryConfig()
 
     @Suppress("UNCHECKED_CAST")
     fun tests() = rootContext<HelmResourceHandler> {
+        val helmResourceYaml = this::class.java.classLoader.getResource("helm/helmResource.yml").readText()
+        val deliveryConfigYaml = this::class.java.classLoader.getResource("helm/deliveryConfig.yml").readText()
+        val clouddvierGitRepoYaml = this::class.java.classLoader.getResource("helm/clouddriverGitRepoResponse.yml").readText()
+        val deliveryConfigWithoutArtifactYaml = this::class.java.classLoader.getResource("helm/deliveryConfigWithoutArtifact.yml").readText()
+
+        val deliveryConfig =
+            yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).makeDeliveryConfig()
+
         fixture {
             HelmResourceHandler(
                 cloudDriverK8sService,
@@ -291,7 +99,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
 
         context("resource verification") {
             test("missing spec results in error") {
-                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 badSpec.template.spec = null
                 expectCatching {
                     toResolvedType(
@@ -304,7 +112,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
             }
 
             test("missing template.spec.chart field results in error") {
-                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 badSpec.template.spec!!.remove("chart")
                 expectCatching {
                     toResolvedType(
@@ -316,7 +124,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 }.failed().isA<CannotResolveDesiredState>()
             }
             test("missing template.spec.chart.spec field results in error") {
-                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 (badSpec.template.spec!!["chart"] as MutableMap<String, Any>).remove("spec")
                 expectCatching {
                     toResolvedType(
@@ -328,7 +136,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 }.failed().isA<CannotResolveDesiredState>()
             }
             test("missing template.spec.chart.spec.chart field results in error") {
-                val badSpec =  yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 ((badSpec.template.spec!!["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, String>).remove("chart")
                 expectCatching {
                     toResolvedType(
@@ -386,7 +194,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 test("no error") {
                     val resource = resource(
                         kind = HELM_RESOURCE_SPEC_V1.kind,
-                        spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                        spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                     )
                     runBlocking {
                         val resolved = toResolvedType(resource)
@@ -444,14 +252,14 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         val desired = desired(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             )
                         )
 
                         val current = current(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             )
                         )
                         val diff = DefaultResourceDiff(desired = desired, current = current)
@@ -481,7 +289,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         val current = current(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             )
                         )
                         expectThat(current).isNull()
@@ -507,14 +315,14 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         val desired = desired(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             )
                         )
 
                         val current = current(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             )
                         )
                         val diff = DefaultResourceDiff(desired = desired, current = current)
@@ -522,7 +330,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                         upsert(
                             resource(
                                 kind = HELM_RESOURCE_SPEC_V1.kind,
-                                spec = yamlMapper.readValue(sqlHelmYaml, HelmResourceSpec::class.java)
+                                spec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                             ), diff
                         )
 
@@ -541,9 +349,90 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 }
             }
         }
+
+        context("spec without artifact") {
+            val deliveryConfigWithoutArtifact = yamlMapper.readValue(deliveryConfigWithoutArtifactYaml, SubmittedDeliveryConfig::class.java).makeDeliveryConfig()
+            val helmResourceWithoutArtifactYaml = this::class.java.classLoader.getResource("helm/helmResourceWithoutArtifact.yml").readText()
+
+            before {
+                coEvery {
+                    repository.deliveryConfigFor(any())
+                } returns deliveryConfigWithoutArtifact
+                every { repository.environmentFor(any()) } returns Environment("testEnv")
+            }
+
+            test("desired state is resolved correctly") {
+                val resource = resource(
+                    kind = HELM_RESOURCE_SPEC_V1.kind,
+                    spec = yamlMapper.readValue(helmResourceWithoutArtifactYaml, HelmResourceSpec::class.java)
+                )
+                runBlocking {
+                    val resolved = toResolvedType(resource)
+                    expectThat(resolved.items?.size).isEqualTo(1)
+                    resolved.items?.first()?.let{
+                        expectThat(it.apiVersion).isEqualTo(FLUX_HELM_API_VERSION)
+                        expectThat(it.kind).isEqualTo(FLUX_HELM_KIND)
+                    }
+                }
+            }
+
+            test("null returned when 404") {
+                clearMocks(cloudDriverK8sService)
+                val notFound: Response<Any> =
+                    Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+                coEvery {
+                    cloudDriverK8sService.getK8sResource(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                    )
+                } throws HttpException(notFound)
+
+                runBlocking {
+                    val current = current(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = yamlMapper.readValue(helmResourceWithoutArtifactYaml, HelmResourceSpec::class.java)
+                        )
+                    )
+                    expectThat(current).isNull()
+                }
+            }
+
+            test("no diff") {
+                clearMocks(cloudDriverK8sService)
+                coEvery {
+                    cloudDriverK8sService.getK8sResource(
+                        any(),
+                        any(),
+                        any(),
+                        "helmrelease fnord-test",
+                    )
+                } returns helmResourceModel("helm/clouddriverHelmResponseWithoutArtifact.yml")
+
+                runBlocking {
+                    val desired = desired(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = yamlMapper.readValue(helmResourceWithoutArtifactYaml, HelmResourceSpec::class.java)
+                        )
+                    )
+                    val current = current(
+                        resource(
+                            kind = HELM_RESOURCE_SPEC_V1.kind,
+                            spec = yamlMapper.readValue(helmResourceWithoutArtifactYaml, HelmResourceSpec::class.java)
+                        )
+                    )
+                    val diff = DefaultResourceDiff(desired = desired, current = current)
+                    expectThat(diff.hasChanges()).isFalse()
+                }
+            }
+        }
     }
 
-    private fun helmResourceModel(): K8sResourceModel {
+    private fun helmResourceModel(path: String? = null): K8sResourceModel {
+        val clouddriverHelmYaml = this::class.java.classLoader.getResource(path ?: "helm/clouddriverHelmResponse.yml").readText()
         val lastApplied = yamlMapper.readValue(clouddriverHelmYaml, HelmResourceSpec::class.java)
         return K8sResourceModel(
             account = "my-k8s-west-account",

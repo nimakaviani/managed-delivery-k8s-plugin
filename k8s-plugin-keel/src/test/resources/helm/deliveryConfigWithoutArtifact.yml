@@ -1,0 +1,33 @@
+name: demo1
+application: fnord
+serviceAccount: keeltest-service-account
+artifacts: []
+environments:
+  - name: test
+    locations:
+      account: deploy-experiments
+      regions: []
+    resources:
+      - kind: k8s/helm@v1
+        spec:
+          metadata:
+            application: fnord
+          template:
+            metadata:
+              name: crossplane
+              namespace: flux-system
+            spec:
+              releaseName: crossplane
+              targetNamespace: crossplane-system
+              chart:
+                spec:
+                  chart: crossplane
+                  version: "0.0.1"
+                  sourceRef:
+                    kind: HelmRepository
+                    name: testSource
+                    namespace: flux-system
+              interval: 1m
+              install:
+                remediation:
+                  retries: 3

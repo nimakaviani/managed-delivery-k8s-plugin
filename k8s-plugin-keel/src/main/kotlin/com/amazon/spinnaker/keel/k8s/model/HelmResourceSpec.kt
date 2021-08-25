@@ -21,11 +21,10 @@ import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
 import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
 class HelmResourceSpec (
-    val chart: ReferenceProvider? = null,
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
-    override val artifactSpec: ArtifactSpec
+    override val artifactSpec: ArtifactSpec?
 ): ArtifactReferenceProvider, BaseFluxResourceSpec() {
     init {
         template.kind = template.kind ?: FLUX_HELM_KIND

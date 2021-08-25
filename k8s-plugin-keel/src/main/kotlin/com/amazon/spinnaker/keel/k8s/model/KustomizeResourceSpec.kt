@@ -23,7 +23,7 @@ class KustomizeResourceSpec (
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
-    override val artifactSpec: ArtifactSpec
+    override val artifactSpec: ArtifactSpec?
 ): BaseFluxResourceSpec(), GenericK8sLocatable {
     init {
         template.kind = template.kind ?: FLUX_KUSTOMIZE_KIND
