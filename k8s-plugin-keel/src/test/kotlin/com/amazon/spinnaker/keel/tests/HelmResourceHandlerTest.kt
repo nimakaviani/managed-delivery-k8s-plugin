@@ -80,8 +80,10 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
     fun tests() = rootContext<HelmResourceHandler> {
         val helmResourceYaml = this::class.java.classLoader.getResource("helm/helmResource.yml").readText()
         val deliveryConfigYaml = this::class.java.classLoader.getResource("helm/deliveryConfig.yml").readText()
-        val clouddvierGitRepoYaml = this::class.java.classLoader.getResource("helm/clouddriverGitRepoResponse.yml").readText()
-        val deliveryConfigWithoutArtifactYaml = this::class.java.classLoader.getResource("helm/deliveryConfigWithoutArtifact.yml").readText()
+        val clouddvierGitRepoYaml =
+            this::class.java.classLoader.getResource("helm/clouddriverGitRepoResponse.yml").readText()
+        val deliveryConfigWithoutArtifactYaml =
+            this::class.java.classLoader.getResource("helm/deliveryConfigWithoutArtifact.yml").readText()
 
         val deliveryConfig =
             yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).makeDeliveryConfig()
@@ -99,7 +101,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
 
         context("resource verification") {
             test("missing spec results in error") {
-                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
+                val badSpec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 badSpec.template.spec = null
                 expectCatching {
                     toResolvedType(
@@ -112,7 +114,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
             }
 
             test("missing template.spec.chart field results in error") {
-                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
+                val badSpec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 badSpec.template.spec!!.remove("chart")
                 expectCatching {
                     toResolvedType(
@@ -124,7 +126,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 }.failed().isA<CannotResolveDesiredState>()
             }
             test("missing template.spec.chart.spec field results in error") {
-                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
+                val badSpec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
                 (badSpec.template.spec!!["chart"] as MutableMap<String, Any>).remove("spec")
                 expectCatching {
                     toResolvedType(
@@ -136,8 +138,10 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 }.failed().isA<CannotResolveDesiredState>()
             }
             test("missing template.spec.chart.spec.chart field results in error") {
-                val badSpec =  yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
-                ((badSpec.template.spec!!["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, String>).remove("chart")
+                val badSpec = yamlMapper.readValue(helmResourceYaml, HelmResourceSpec::class.java)
+                ((badSpec.template.spec!!["chart"] as MutableMap<String, Any>)["spec"] as MutableMap<String, String>).remove(
+                    "chart"
+                )
                 expectCatching {
                     toResolvedType(
                         resource(
@@ -351,8 +355,11 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
         }
 
         context("spec without artifact") {
-            val deliveryConfigWithoutArtifact = yamlMapper.readValue(deliveryConfigWithoutArtifactYaml, SubmittedDeliveryConfig::class.java).makeDeliveryConfig()
-            val helmResourceWithoutArtifactYaml = this::class.java.classLoader.getResource("helm/helmResourceWithoutArtifact.yml").readText()
+            val deliveryConfigWithoutArtifact =
+                yamlMapper.readValue(deliveryConfigWithoutArtifactYaml, SubmittedDeliveryConfig::class.java)
+                    .makeDeliveryConfig()
+            val helmResourceWithoutArtifactYaml =
+                this::class.java.classLoader.getResource("helm/helmResourceWithoutArtifact.yml").readText()
 
             before {
                 coEvery {
@@ -369,7 +376,7 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
                 runBlocking {
                     val resolved = toResolvedType(resource)
                     expectThat(resolved.items?.size).isEqualTo(1)
-                    resolved.items?.first()?.let{
+                    resolved.items?.first()?.let {
                         expectThat(it.apiVersion).isEqualTo(FLUX_HELM_API_VERSION)
                         expectThat(it.kind).isEqualTo(FLUX_HELM_KIND)
                     }
@@ -432,7 +439,8 @@ internal class HelmResourceHandlerTest : JUnit5Minutests {
     }
 
     private fun helmResourceModel(path: String? = null): K8sResourceModel {
-        val clouddriverHelmYaml = this::class.java.classLoader.getResource(path ?: "helm/clouddriverHelmResponse.yml").readText()
+        val clouddriverHelmYaml =
+            this::class.java.classLoader.getResource(path ?: "helm/clouddriverHelmResponse.yml").readText()
         val lastApplied = yamlMapper.readValue(clouddriverHelmYaml, HelmResourceSpec::class.java)
         return K8sResourceModel(
             account = "my-k8s-west-account",

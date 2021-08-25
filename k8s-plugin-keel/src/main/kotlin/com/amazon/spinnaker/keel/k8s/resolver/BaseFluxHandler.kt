@@ -59,7 +59,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         val environment = repository.environmentFor(r.id)
         if (r.spec.artifactSpec != null) {
             val (artifact, _) = getArtifactAndConfig(r)
-            requireNotNull(artifact) {"artifact could not be found in delivery config (null)"} // this shouldn't happen (famous last word)
+            requireNotNull(artifact) { "artifact could not be found in delivery config (null) resource: $r" } // this shouldn't happen (famous last word)
             val resolvedArtifact = resolveArtifactSpec(r, artifact)
             return getFluxK8sResources(r, resolvedArtifact, generateCorrelationId(r), environment.name)
         }
@@ -260,7 +260,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         }
     }
 
-    private suspend fun getFluxK8sResource( resource: Resource<S>, correlationId: String): R? {
+    private suspend fun getFluxK8sResource(resource: Resource<S>, correlationId: String): R? {
         try {
             return coroutineScope {
                 return@coroutineScope toK8sList(null, getFluxResourceManifest(resource), correlationId)
