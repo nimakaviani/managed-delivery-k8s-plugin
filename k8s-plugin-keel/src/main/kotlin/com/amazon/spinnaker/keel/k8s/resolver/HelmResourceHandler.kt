@@ -45,15 +45,17 @@ class HelmResourceHandler(
 
     @Suppress("UNCHECKED_CAST")
     public override suspend fun toResolvedType(resource: Resource<HelmResourceSpec>): K8sObjectManifest {
+        log.debug("resolving helm resource definition")
         verifyChartResource(resource)
         val (artifact, deliveryConfig) = getArtifactAndConfig(resource)
         if (artifact == null) {
+            log.debug("artifact reference is null. returning supplied template as is")
             resource.spec.template = toK8sList(
                 null, resource.spec.template, generateCorrelationId(resource)
             )
             return super.toResolvedType(resource)
         }
-
+        log.debug("applying artifact to this helm resource")
         val environment = repository.environmentFor(resource.id)
         val version = repository.latestVersionApprovedIn(
             deliveryConfig, artifact, environment.name
@@ -63,6 +65,7 @@ class HelmResourceHandler(
             // flux ignores the version field when GitRepository or Bucket is used. Must specify version at source controller
             is GitRepoArtifact -> {
                 val resolvedArtifact = resolveArtifactSpec(resource, artifact)
+                log.debug("applied resource specific override to git artifact. artifact: $artifact")
                 val sourceRef = mutableMapOf(
                     NAME to "${resolvedArtifact.name}-${environment.name}",
                     KIND to resolvedArtifact.kind,

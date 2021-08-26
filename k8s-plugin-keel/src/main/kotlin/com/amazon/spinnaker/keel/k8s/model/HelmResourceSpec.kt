@@ -15,17 +15,19 @@
 package com.amazon.spinnaker.keel.k8s.model
 
 import com.amazon.spinnaker.keel.k8s.*
-import com.netflix.spinnaker.keel.api.ArtifactReferenceProvider
 import com.netflix.spinnaker.keel.api.SimpleLocations
 import com.netflix.spinnaker.keel.api.artifacts.ArtifactType
-import com.netflix.spinnaker.keel.docker.ReferenceProvider
 
 class HelmResourceSpec (
     override val metadata: Map<String, String>,
     override var template: K8sObjectManifest,
     override val locations: SimpleLocations,
     override val artifactSpec: ArtifactSpec?
-): ArtifactReferenceProvider, BaseFluxResourceSpec() {
+): BaseFluxResourceSpec() {
+    // This needs to be re-visited when another flux artifact type is introduced.
+    override val artifactType: ArtifactType
+        get() = FluxSupportedSourceType.GIT.name.toLowerCase()
+
     init {
         template.kind = template.kind ?: FLUX_HELM_KIND
         template.apiVersion = template.apiVersion ?: FLUX_HELM_API_VERSION
