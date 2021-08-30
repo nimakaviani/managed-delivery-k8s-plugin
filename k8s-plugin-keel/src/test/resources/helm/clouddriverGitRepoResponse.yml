@@ -1,0 +1,25 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: GitRepository
+metadata:
+  annotations:
+    artifact.spinnaker.io/location: flux-system
+    artifact.spinnaker.io/name: git-github-testProject-testRepo
+    artifact.spinnaker.io/type: kubernetes/GitRepository.source.toolkit.fluxcd.io
+    artifact.spinnaker.io/version: ''
+    moniker.spinnaker.io/application: keeldemo
+    moniker.spinnaker.io/cluster: >-
+      GitRepository.source.toolkit.fluxcd.io
+      git-github-testProject-testRepo
+  labels:
+    app.kubernetes.io/managed-by: spinnaker
+    app.kubernetes.io/name: keeldemo
+    md.spinnaker.io/plugin: k8s
+  name: git-github-testProject-testRepo-testEnv
+  namespace: flux-system
+spec:
+  interval: 1m
+  ref:
+    tag: 1.0.0
+  secretRef:
+    name: git-repo
+  url: https://repo.url

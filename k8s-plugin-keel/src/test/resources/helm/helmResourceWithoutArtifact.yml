@@ -1,0 +1,25 @@
+locations:
+  account: my-k8s-west-account
+  regions: []
+metadata:
+  application: fnord
+template:
+  metadata:
+    name: fnord-test
+    namespace: flux-system
+    application: fnord
+  spec:
+    releaseName: crossplane
+    targetNamespace: crossplane-system
+    chart:
+      spec:
+        chart: crossplane
+        version: "0.0.1"
+        sourceRef:
+          kind: HelmRepository
+          name: testSource
+          namespace: flux-system
+    interval: 1m
+    install:
+      remediation:
+        retries: 3

@@ -1,0 +1,35 @@
+locations:
+  account: my-k8s-west-account
+  regions: []
+metadata:
+  application: fnord
+artifactSpec:
+  ref: my-git-artifact
+template:
+  apiVersion: helm.toolkit.fluxcd.io/v2beta1
+  kind: HelmRelease
+  metadata:
+    annotations:
+      artifact.spinnaker.io/name: git-github-testProject-testRepo
+      artifact.spinnaker.io/location: flux-system
+      moniker.spinnaker.io/application: keeldemo
+    name: fnord-test
+    namespace: flux-system
+    application: fnord
+    labels:
+      md.spinnaker.io/plugin: k8s
+  spec:
+    releaseName: crossplane
+    targetNamespace: crossplane-system
+    chart:
+      spec:
+        chart: crossplane
+        version: "0.0.1"
+        sourceRef:
+          name: testSource
+          kind: HelmRepository
+          namespace: flux-system
+    interval: 1m
+    install:
+      remediation:
+       retries: 3

@@ -55,19 +55,16 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         return deployed
     }
 
-
     override suspend fun getK8sResource(r: Resource<S>): R? {
         val environment = repository.environmentFor(r.id)
-        val (artifact, _) = getArtifactAndConfig(r)
-        when (artifact) {
-            is GitRepoArtifact -> {
-                val resolvedArtifact = resolveArtifactSpec(r, artifact)
-                return getFluxK8sResources(r, resolvedArtifact, generateCorrelationId(r), environment.name)
-            }
-            else -> {
-                throw InvalidArtifact("artifact is not a supported artifact type. artifact: $artifact")
-            }
+        if (r.spec.artifactSpec != null) {
+            val (artifact, _) = getArtifactAndConfig(r)
+            requireNotNull(artifact) { "artifact could not be found in delivery config (null) resource: $r" } // this shouldn't happen (famous last word)
+            val resolvedArtifact = resolveArtifactSpec(r, artifact)
+            return getFluxK8sResources(r, resolvedArtifact, generateCorrelationId(r), environment.name)
         }
+        // without artifact reference
+        return getFluxK8sResource(r, generateCorrelationId(r))
     }
 
     override suspend fun actuationInProgress(resource: Resource<S>): Boolean =
@@ -92,54 +89,62 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         return super.upsert(resource, diff)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    suspend fun getFluxK8sResources(
+    private suspend fun getFluxResourceManifest(
+        resource: Resource<S>
+    ): R {
+        return coroutineScope {
+            val resourceJob = async {
+                cloudDriverK8sService.getK8sResource(
+                    resource.serviceAccount,
+                    resource.spec.locations.account,
+                    getNamespace(resource),
+                    resource.spec.template!!.kindQualifiedName()
+                )
+            }
+            val resourceResponse = resourceJob.await()
+            return@coroutineScope parseFluxResourceManifest(resourceResponse)
+        }
+    }
+
+    private suspend fun getFluxRepoManifest(
+        resource: Resource<S>,
+        artifact: BaseFluxArtifact,
+        environment: String?
+    ): R {
+        val repoNamespace: String = artifact.namespace
+        val repoNameInClouddriver: String = environment?.let {
+            "${artifact.kind} ${artifact.name}-$it"
+        } ?: "${artifact.kind} ${artifact.name}"
+        return coroutineScope {
+            val repoJob = async {
+                cloudDriverK8sService.getK8sResource(
+                    resource.serviceAccount,
+                    resource.spec.locations.account,
+                    repoNamespace,
+                    repoNameInClouddriver
+                )
+            }
+            val repoResponse = repoJob.await()
+            return@coroutineScope parseFluxResourceManifest(repoResponse)
+        }
+    }
+
+    private suspend fun getFluxK8sResources(
         resource: Resource<S>,
         artifact: BaseFluxArtifact,
         correlationId: String,
         environment: String?
     ): R? {
-        val namespace = getNamespace(resource)
-        val repoNamespace: String = artifact.namespace
-        val repoNameInClouddriver: String = environment?.let {
-            "${artifact.kind} ${artifact.name}-$it"
-        } ?: run { "${artifact.kind} ${artifact.name}" }
-
         // need to wrap async with coroutineScope to catch exceptions correctly
         try {
             return coroutineScope {
                 val repoJob = async {
-                    cloudDriverK8sService.getK8sResource(
-                        resource.serviceAccount,
-                        resource.spec.locations.account,
-                        repoNamespace,
-                        repoNameInClouddriver
-                    )
+                    getFluxRepoManifest(resource, artifact, environment)
                 }
                 val resourceJob = async {
-                    cloudDriverK8sService.getK8sResource(
-                        resource.serviceAccount,
-                        resource.spec.locations.account,
-                        namespace,
-                        resource.spec.template!!.kindQualifiedName()
-                    )
+                    getFluxResourceManifest(resource)
                 }
-                val repoResponse = repoJob.await()
-                val resourceResponse = resourceJob.await()
-
-                val lastAppliedConfigRepo =
-                    (repoResponse.manifest.to<K8sObjectManifest>().metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-                val repoManifest = cleanup(mapper.readValue<K8sObjectManifest>(lastAppliedConfigRepo) as R)
-
-                val lastAppliedConfigResource =
-                    (resourceResponse.manifest.to<K8sObjectManifest>().metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
-                val resourceManifest = cleanup(mapper.readValue<K8sObjectManifest>(lastAppliedConfigResource) as R)
-
-                if (repoManifest == null || resourceManifest == null) {
-                    log.error("unable to read last applied config from clouddriver.")
-                    throw ClouddriverProcessingError("unable to read last applied config from clouddriver.")
-                }
-                return@coroutineScope toK8sList(repoManifest, resourceManifest, correlationId)
+                return@coroutineScope toK8sList(repoJob.await(), resourceJob.await(), correlationId)
             }
         } catch (e: HttpException) {
             if (e.code() == 404) {
@@ -165,7 +170,7 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
 
     @Suppress("UNCHECKED_CAST")
     fun toK8sList(
-        repoManifest: R,
+        repoManifest: R?,
         resourceManifest: R,
         name: String
     ): R {
@@ -178,10 +183,10 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
             null,
             null,
             null,
-            mutableListOf(
+            listOfNotNull(
                 repoManifest,
                 resourceManifest
-            )
+            ).toMutableList()
         ) as R
     }
 
@@ -210,29 +215,29 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
         }
     }
 
-    fun getArtifactAndConfig(resource: Resource<S>): Pair<BaseFluxArtifact, DeliveryConfig> {
+    fun getArtifactAndConfig(resource: Resource<S>): Pair<BaseFluxArtifact?, DeliveryConfig> {
         val deliveryConfig = repository.deliveryConfigFor(resource.id)
-        resource.spec.artifactReference.let { artifactRef ->
-            val artifact = deliveryConfig.artifacts.find {
-                log.trace("checking $it")
-                it.reference == artifactRef
+        val artifact = resource.spec.artifactSpec?.let { artifactSpec ->
+            val artifactInConfig = deliveryConfig.artifacts.find {
+                log.debug("checking $it")
+                it.reference == artifactSpec.ref
             } ?: throw NoMatchingArtifactException(
                 deliveryConfigName = deliveryConfig.name,
                 type = "unknown",
-                reference = artifactRef
+                reference = artifactSpec.ref
             )
-
-            log.debug("found FluxArtifact: $artifact")
-            return Pair(artifact as BaseFluxArtifact, deliveryConfig)
+            artifactInConfig as BaseFluxArtifact
         }
+        log.debug("Flux artifact in delivery config: $artifact")
+        return Pair(artifact, deliveryConfig)
     }
 
     inline fun <reified T : BaseFluxArtifact> resolveArtifactSpec(resource: Resource<S>, artifact: T): T {
         when (artifact) {
             is GitRepoArtifact -> {
                 return artifact.copy(
-                    namespace = resource.spec.artifactSpec.namespace ?: artifact.namespace,
-                    interval = resource.spec.artifactSpec.interval ?: artifact.interval
+                    namespace = resource.spec.artifactSpec?.namespace ?: artifact.namespace,
+                    interval = resource.spec.artifactSpec?.interval ?: artifact.interval
                 ) as T
             }
             // TODO add support for more artifacts
@@ -253,5 +258,33 @@ abstract class BaseFluxHandler<S : BaseFluxResourceSpec, R : K8sManifest>(
             log.info("Deploying Git artifact $it")
             notifyArtifactDeploying(resource, it)
         }
+    }
+
+    private suspend fun getFluxK8sResource(resource: Resource<S>, correlationId: String): R? {
+        try {
+            return coroutineScope {
+                return@coroutineScope toK8sList(null, getFluxResourceManifest(resource), correlationId)
+            }
+        } catch (e: HttpException) {
+            if (e.code() == 404) {
+                log.info("resource ${resource.id} not found")
+                return null
+            } else {
+                throw e
+            }
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun parseFluxResourceManifest(response: K8sResourceModel): R {
+        val lastAppliedConfigResource =
+            (response.manifest.to<K8sObjectManifest>().metadata[ANNOTATIONS] as Map<String, String>)[K8S_LAST_APPLIED_CONFIG] as String
+        val resourceManifest = cleanup(mapper.readValue<K8sObjectManifest>(lastAppliedConfigResource) as R)
+
+        if (resourceManifest == null) {
+            log.error("unable to read last applied config from clouddriver.")
+            throw ClouddriverProcessingError("unable to read last applied config from clouddriver.")
+        }
+        return resourceManifest
     }
 }

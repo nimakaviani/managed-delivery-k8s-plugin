@@ -15,7 +15,6 @@
 package com.amazon.spinnaker.keel.tests
 
 import com.amazon.spinnaker.keel.k8s.model.HelmResourceSpec
-import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper
@@ -23,6 +22,7 @@ import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
+import strikt.assertions.isNull
 
 internal object HelmResourceSpecTest : JUnit5Minutests {
 
@@ -37,8 +37,6 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                 Fixture(
                     yaml = """
                         |---
-                        |chart:
-                        |  reference: something
                         |locations:
                         |  account: my-k8s-west-account
                         |  regions: []
@@ -78,9 +76,42 @@ internal object HelmResourceSpecTest : JUnit5Minutests {
                         .get { metadata["application"] }.isEqualTo("fnord")
                 }
 
-                test("has chart information properly stored") {
+                test("artifact ref stored correctly") {
                     expectThat(this)
-                        .get { chart?.reference }.isEqualTo("something")
+                        .get { artifactReference }.isEqualTo("my-git-artifact")
+                }
+            }
+        }
+        context("a simple Helm resource definition without artifact ref") {
+            fixture {
+                Fixture(
+                    yaml = """
+                        |---
+                        |locations:
+                        |  account: my-k8s-west-account
+                        |  regions: []
+                        |metadata:
+                        |  application: fnord
+                        |template:
+                        |  apiVersion: source.toolkit.fluxcd.io/v1beta1
+                        |  kind: HelmRepository
+                        |  metadata:
+                        |      name: crossplane-master
+                        |  spec:
+                        |      interval: 5m
+                        |      url: https://charts.crossplane.io/master
+                    """.trimMargin()
+                )
+            }
+
+            derivedContext<HelmResourceSpec>("when deserialized") {
+                deriveFixture {
+                    mapper.readValue(yaml)
+                }
+
+                test("null artifact ref returned") {
+                    expectThat(this)
+                        .get { artifactReference }.isNull()
                 }
             }
         }
