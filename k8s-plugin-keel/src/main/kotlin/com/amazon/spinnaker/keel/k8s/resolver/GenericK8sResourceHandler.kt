@@ -158,8 +158,10 @@ abstract class GenericK8sResourceHandler <S: GenericK8sLocatable, R: K8sManifest
                 val r = it.value as MutableMap<String, Any?>
                 find(r, key)?.let{ nested -> return nested}
             } else if (it.value is ArrayList<*>) {
-                (it.value as ArrayList<Map<*, *>>).forEach{ elem ->
-                    find(elem as MutableMap<String, Any?>, key)?.let{ it -> return it }
+                (it.value as ArrayList<*>).forEach{ elem ->
+                    if (elem is Map<*, *>) {
+                        find(elem as MutableMap<String, Any?>, key)?.let { it -> return it }
+                    }
                 }
             }
         }
