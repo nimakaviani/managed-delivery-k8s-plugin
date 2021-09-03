@@ -26,7 +26,7 @@ import com.netflix.spinnaker.keel.api.artifacts.PublishedArtifact
 import com.netflix.spinnaker.keel.api.constraints.ConstraintStatus
 import com.netflix.spinnaker.keel.core.api.SubmittedDeliveryConfig
 import com.netflix.spinnaker.keel.orca.ExecutionDetailResponse
-import com.netflix.spinnaker.keel.orca.OrcaExecutionStatus
+import com.netflix.spinnaker.keel.api.TaskStatus
 import com.netflix.spinnaker.keel.orca.OrcaService
 import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
@@ -125,7 +125,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 coEvery {
                     orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } returns ExecutionDetailResponse(
-                    "123", "somename", "fnord", Instant.now(), null, null, OrcaExecutionStatus.SUCCEEDED
+                    "123", "somename", "fnord", Instant.now(), null, null, TaskStatus.SUCCEEDED
                 )
                 val actionState = ActionState(
                     ConstraintStatus.PENDING, Instant.now(), null, mapOf(
@@ -157,7 +157,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 coEvery {
                     orcaService.getOrchestrationExecution("123", any())
                 } returns ExecutionDetailResponse(
-                    "123", "somename", "fnord", Instant.now(), null, null, OrcaExecutionStatus.RUNNING
+                    "123", "somename", "fnord", Instant.now(), null, null, TaskStatus.RUNNING
                 )
                 val actionState = ActionState(
                     ConstraintStatus.PASS, Instant.now(), null, mapOf("taskId" to "123", "taskName" to "somename")
