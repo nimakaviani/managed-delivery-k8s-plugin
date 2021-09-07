@@ -75,6 +75,14 @@
         "sha512sum": "0124f41a06fdc1bfc25deef0ca3c25fe075aabf3a8fef73a9e4bccec8e05767ccad8d314edebadbc1ff398f75364118017d3d56cf966da2d805faa750c3eb9fd",
         "preferred": false,
         "url": "https://github.com/nimakaviani/managed-delivery-k8s-plugin/releases/download/0.0.9/managed-delivery-k8s-plugin-0.0.9.zip"
+      },
+      {
+        "version": "0.0.10",
+        "date": "2021-09-07T20:08:44.664593Z",
+        "requires": "clouddriver>=5.0.0,keel>=0.0.0,deck>=0.0.0",
+        "sha512sum": "36200be5adf700f803cda5ba06e1b06d7caddcdadab696a5eecbaabbd0bbc01cddd5c20f621f982a76aee1ca5187fcc86393552c9760df1b0a1fac16f5e76710",
+        "preferred": false,
+        "url": "https://github.com/nimakaviani/managed-delivery-k8s-plugin/releases/download/0.0.10/managed-delivery-k8s-plugin-0.0.10.zip"
       }
     ]
   }
