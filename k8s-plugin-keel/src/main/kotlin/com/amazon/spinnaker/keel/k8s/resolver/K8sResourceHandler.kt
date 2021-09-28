@@ -39,6 +39,7 @@ class K8sResourceHandler (
 ) {
 
     override val supportedKind = K8S_RESOURCE_SPEC_V1
+    private val tagRegex = """.*:(.+)""".toRegex()
 
     override suspend fun toResolvedType(resource: Resource<K8sResourceSpec>): K8sObjectManifest {
         // Spinnaker versions configMap and secrets by default
@@ -77,8 +78,12 @@ class K8sResourceHandler (
             manifest?.let {
                 val imageString = find(it.spec ?: mutableMapOf(), IMAGE) as String?
                 imageString?.let { image ->
-                    log.info("Deployed artifact $image")
-                    notifyArtifactDeployed(r, getTag(image))
+                    getTag(image)?.let { tag ->
+                        log.info("Deployed artifact $image for ${r.application}")
+                        notifyArtifactDeployed(r, tag)
+                    } ?: run {
+                        log.warn("image value, $it, does not contain a valid container tag")
+                    }
                 }
             }
             manifest
@@ -91,19 +96,27 @@ class K8sResourceHandler (
         // send a notification on attempt to deploy the image artifact
         val imageString = find(resource.spec.template.spec ?: mutableMapOf(), "image") as String?
         imageString?.let{
-            log.info("Deploying artifact $it")
-            notifyArtifactDeploying(resource, getTag(it))
+            getTag(it)?.let { tag ->
+                log.info("Deploying artifact $it for ${resource.application}")
+                notifyArtifactDeploying(resource, tag)
+            } ?: run {
+                log.warn("image value, $it, does not contain a valid container tag")
+            }
         }
         // then defer to GenericK8sResourceHandler to deploy
         // k8s resource to the cluster
         return super.upsert(resource, diff)
     }
 
-    private fun getTag(imageString: String): String {
-        val regex = """.*:(.+)""".toRegex()
-        val matchResult = regex.find(imageString)
-        val (tag) = matchResult!!.destructured
-        return tag
+    private fun getTag(imageString: String): String? {
+        val matchResult = tagRegex.find(imageString)
+        matchResult?.groupValues?.let {
+            if (it.size == 2) {
+                return it[1]
+            }
+            log.debug("regex, ${tagRegex.pattern}, on image $imageString did not result in 2 strings. result: $it")
+        }
+        return null
     }
 
     override suspend fun actuationInProgress(resource: Resource<K8sResourceSpec>): Boolean =

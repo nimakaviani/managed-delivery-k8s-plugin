@@ -318,6 +318,35 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
             }
         }
 
+        context("spec with invalid container image") {
+            val k8sResourceSpec = yamlMapper.readValue(
+                yaml.replace("replicas: REPLICA", "replicas: 1")
+                    .replace("image: nimak/helloworld:0.1", "image: invalid"),
+                K8sResourceSpec::class.java)
+            val k8sResource = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = k8sResourceSpec
+            )
+
+            before {
+                val notFound: Response<Any> = Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } throws
+                        HttpException(notFound)
+            }
+
+            test("artifact deploying event does not fire") {
+                runBlocking {
+                    val current = current(k8sResource)
+                    val desired = desired(k8sResource)
+                    upsert(k8sResource, DefaultResourceDiff(desired = desired, current = current))
+                }
+
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeploying(resource.id, "invalid")) }
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeploying(resource.id, "0.1")) }
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeployed(resource.id, "invalid")) }
+            }
+        }
+
         context("the K8s resource has been created"){
             val resourceSpec = yamlMapper.readValue(expectedYaml.replace("replicas: REPLICA", "replicas: 1"), K8sResourceSpec::class.java)
             var resourceModel = resourceModel(resourceSpec.template, mutableMapOf("image" to "teset/test:0.1"))
