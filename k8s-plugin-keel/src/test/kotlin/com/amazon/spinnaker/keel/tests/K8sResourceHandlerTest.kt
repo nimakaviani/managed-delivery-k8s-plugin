@@ -17,7 +17,9 @@ package com.amazon.spinnaker.keel.tests
 import com.amazon.spinnaker.keel.k8s.*
 import com.amazon.spinnaker.keel.k8s.exception.ResourceNotReady
 import com.amazon.spinnaker.keel.k8s.model.Condition
+import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
+import com.amazon.spinnaker.keel.k8s.model.Status
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResolver
 import com.amazon.spinnaker.keel.k8s.resolver.K8sResourceHandler
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
@@ -28,31 +30,29 @@ import com.netflix.spinnaker.keel.api.events.ArtifactVersionDeploying
 import com.netflix.spinnaker.keel.api.plugins.Resolver
 import com.netflix.spinnaker.keel.api.support.EventPublisher
 import com.netflix.spinnaker.keel.diff.DefaultResourceDiff
+import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.model.OrchestrationRequest
 import com.netflix.spinnaker.keel.orca.OrcaService
 import com.netflix.spinnaker.keel.orca.OrcaTaskLauncher
-import com.amazon.spinnaker.keel.k8s.model.K8sObjectManifest
-import com.amazon.spinnaker.keel.k8s.model.Status
-import com.netflix.spinnaker.keel.events.ResourceHealthEvent
 import com.netflix.spinnaker.keel.orca.TaskRefResponse
 import com.netflix.spinnaker.keel.persistence.KeelRepository
 import com.netflix.spinnaker.keel.serialization.configuredYamlMapper
-import dev.minutest.junit.JUnit5Minutests
 import com.netflix.spinnaker.keel.test.resource
-import okhttp3.ResponseBody
 import de.danielbechler.diff.node.DiffNode
 import de.danielbechler.diff.path.NodePath
+import dev.minutest.junit.JUnit5Minutests
 import dev.minutest.rootContext
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
-import retrofit2.HttpException
+import okhttp3.ResponseBody
 import org.springframework.http.HttpStatus
-import org.springframework.core.env.Environment as SpringEnv
+import retrofit2.HttpException
 import retrofit2.Response
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.assertions.*
 import java.util.*
+import org.springframework.core.env.Environment as SpringEnv
 
 @Suppress("UNCHECKED_CAST")
 internal class K8sResourceHandlerTest : JUnit5Minutests {
@@ -315,6 +315,37 @@ internal class K8sResourceHandlerTest : JUnit5Minutests {
                 expectThat(slot.captured.job.first()) {
                     get("type").isEqualTo("deployManifest")
                 }
+            }
+        }
+
+        context("spec with invalid container image") {
+            val k8sResourceSpec = yamlMapper.readValue(
+                yaml.replace("replicas: REPLICA", "replicas: 1")
+                    .replace("image: nimak/helloworld:0.1", "image: invalid"),
+                K8sResourceSpec::class.java
+            )
+            val k8sResource = resource(
+                kind = K8S_RESOURCE_SPEC_V1.kind,
+                spec = k8sResourceSpec
+            )
+
+            before {
+                val notFound: Response<Any> =
+                    Response.error(HttpStatus.NOT_FOUND.value(), ResponseBody.create(null, "not found"))
+                coEvery { cloudDriverK8sService.getK8sResource(any(), any(), any(), any()) } throws
+                        HttpException(notFound)
+            }
+
+            test("artifact deploying event does not fire") {
+                runBlocking {
+                    val current = current(k8sResource)
+                    val desired = desired(k8sResource)
+                    upsert(k8sResource, DefaultResourceDiff(desired = desired, current = current))
+                }
+
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeploying(resource.id, "invalid")) }
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeploying(resource.id, "0.1")) }
+                verify(exactly = 0) { publisher.publishEvent(ArtifactVersionDeployed(resource.id, "invalid")) }
             }
         }
 
