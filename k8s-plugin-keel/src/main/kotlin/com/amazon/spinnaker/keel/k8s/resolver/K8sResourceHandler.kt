@@ -111,6 +111,7 @@ class K8sResourceHandler (
     private fun getTag(imageString: String): String? {
         val matchResult = tagRegex.find(imageString)
         matchResult?.groupValues?.let {
+            // size should be the number of regex capture group + 1
             if (it.size == 2) {
                 return it[1]
             }
