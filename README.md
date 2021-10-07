@@ -9,6 +9,7 @@
 |  0.0.7       |  0.194.1 |
 |  0.0.{8,9}   |  0.195.0 |
 |  0.0.10      |  0.197.0 |
+|  0.0.11      |  0.202.0 |
 
 It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
 version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),

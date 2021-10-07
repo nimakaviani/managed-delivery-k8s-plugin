@@ -69,11 +69,10 @@ class DockerImageResolver(
             cloudDriverService.findDockerTagsForImage(account, repository)
         }
 
-    override fun getDigest(account: String, organization: String, image: String, tag: String) =
+    override fun getDigest(account: String, artifact: DockerArtifact, tag: String) =
         runBlocking {
-            val repository = "$organization/$image"
-            val images = cloudDriverService.findDockerImages(account, repository, tag)
-            val img = images.firstOrNull() ?: throw NoDigestFound(repository, tag)
+            val images = cloudDriverService.findDockerImages(account, artifact.name, tag)
+            val img = images.firstOrNull() ?: throw NoDigestFound(artifact.name, tag)
             img.digest ?: ""
         }
 

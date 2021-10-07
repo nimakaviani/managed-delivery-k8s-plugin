@@ -38,4 +38,8 @@ data class GitRepoArtifact(
     override val statuses: Set<ArtifactStatus> = emptySet()
 
     override val sortingStrategy: SortingStrategy = GitRepoVersionSortingStrategy(tagVersionStrategy)
+
+    override fun withDeliveryConfigName(deliveryConfigName: String): DeliveryArtifact {
+        return this.copy(deliveryConfigName = deliveryConfigName)
+    }
 }
