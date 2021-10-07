@@ -177,7 +177,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
                 val slot = slot<List<Job>>()
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
                 } returns Task("123", "somename")
 
                 val result = start(generateArtifactContext(), deliveryConfig.environments.first().verifyWith.first())
@@ -212,7 +212,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
                 val slot = slot<List<Job>>()
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
                 } returns Task("123", "somename")
                 val manifestMetadata =
                     (deliveryConfig.environments.first().verifyWith.first() as K8sJobVerification).manifest["metadata"] as MutableMap<String, Any>
@@ -232,7 +232,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
                 val slot = slot<List<Job>>()
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
                 } returns Task("123", "somename")
                 val originalLabels = mapOf("label1" to "value1", "label2" to "value2")
                 val originalMetadata =
@@ -259,7 +259,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 (verification.manifest["metadata"] as MutableMap<String, Any>)[NAMESPACE] = "testing"
 
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
                 } returns Task("123", "somename")
 
                 val result = start(generateArtifactContext(), verification)
@@ -309,7 +309,7 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                     orcaService.getOrchestrationExecution("123", "keel-service-account")
                 } throws HttpException(notFound)
                 coEvery {
-                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
                 } throws HttpException(badRequest)
 
                 expectCatching {
