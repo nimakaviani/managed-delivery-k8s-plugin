@@ -3,7 +3,7 @@
 # READ BELOW TO CONFIGURE TEST PLUGIN ARTIFACT GENERATION
 #
 # - this script assumes that you have the aws cli installed and configured to work with your account
-# - create an S3 bucket in a given aws regino
+# - create an S3 bucket in a given aws region
 # - set the region and the bucket name for the variables REGION and BUCKET
 # - create a VPC endpoint for your k8s cluster to be able to use s3
 # - add a policy to your S3 bucket to allow access from the VPC using the VPC endpoint
@@ -18,8 +18,8 @@
 #         enabled: true
 #         version: 0.0.1
 #     repositories:
-#       awsManagedDelvieryK8sPluginRepo:
-#         id: awsManagedDelvieryK8sPluginRepo
+#       awsManagedDeliveryK8sPluginRepo:
+#         id: awsManagedDeliveryK8sPluginRepo
 #         url: https://$BUCKET.$REGION.amazonaws.com/plugins.json
 # ```
 
@@ -50,8 +50,11 @@ version=$(increment_version "${tag}" 2)
 rm -rf $PLUGIN_PATH/*
 rm -rf $TEMP_FILE,$TEMP_PLUGIN_FILE
 
+# fetch first to ensure we get the latest tags
+git fetch
+
 # build the plugin
-./gradlew releaseBundle
+./gradlew -Pversion=$version releaseBundle
 
 # update plugins.json
 cat $PLUGIN_PATH/plugin-info.json | jq -r '.releases |= map( . + '{\"url\":\"https://$BUCKET.$REGION.amazonaws.com/managed-delivery-k8s-plugin-${version}.zip\"}')' > $TEMP_PLUGIN_FILE
