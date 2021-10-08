@@ -61,6 +61,7 @@ const val FLUX_KUSTOMIZE_API_VERSION: String = "kustomize.toolkit.fluxcd.io/v1be
 const val FLUX_KUSTOMIZE_KIND: String = "Kustomization"
 const val FLUX_SECRETS_TOKEN_USERNAME: String = "token-user"
 const val FLUX_SOURCE_API_VERSION: String = "source.toolkit.fluxcd.io/v1beta1"
+const val K8S_INVALID_CHARACTER_REGEX = "[^\\.\\-a-z0-9]"
 
 const val VERIFICATION_K8S_JOB_V1: String = "k8s/job@v1"
 const val VERIFICATION_K8S_TYPE: String = "runJobManifest"

@@ -204,7 +204,30 @@ internal class K8sJobEvaluatorTest : JUnit5Minutests {
                 }
                 expectThat(labels[VERIFICATION_ENVIRONMENT_LABEL]).isEqualTo("test")
                 expectThat(labels[VERIFICATION_ARTIFACT_LABEL]).isEqualTo("123")
+            }
 
+            test("validate no special characters in job name/label") {
+                val deliveryConfig =
+                    yamlMapper.readValue(deliveryConfigYaml, SubmittedDeliveryConfig::class.java).toDeliveryConfig()
+                val slot = slot<List<Job>>()
+                coEvery {
+                    taskLauncher.submitJob(any(), any(), any(), any(), any(), any(), any(), capture(slot), any(), any(), any())
+                } returns Task("123", "somename")
+
+                val artifactInEnvironmentContext = ArtifactInEnvironmentContext(
+                    deliveryConfig, deliveryConfig.environments.first(), PublishedArtifact(
+                        "artifactName", "Docker", "12~3", "my-docker-artifact"
+                    )
+                )
+                start(artifactInEnvironmentContext , deliveryConfig.environments.first().verifyWith.first())
+
+                val manifest = slot.captured.first()["manifest"] as Map<String, Any>
+                val metadata = manifest["metadata"] as Map<String, Any>
+                expectThat(metadata["generateName"] as String).isEqualTo("verify-fnord-test-12-3")
+
+                val labels = metadata[LABELS] as Map<String, String>
+                expectThat(labels[VERIFICATION_ENVIRONMENT_LABEL]).isEqualTo("test")
+                expectThat(labels[VERIFICATION_ARTIFACT_LABEL]).isEqualTo("12-3")
             }
 
             test("generateName preserved") {
