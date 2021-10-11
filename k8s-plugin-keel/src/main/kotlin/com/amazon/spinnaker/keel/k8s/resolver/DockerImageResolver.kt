@@ -19,7 +19,6 @@ import com.amazon.spinnaker.keel.k8s.exception.*
 import com.amazon.spinnaker.keel.k8s.model.ClouddriverDockerImage
 import com.amazon.spinnaker.keel.k8s.model.K8sResourceSpec
 import com.amazon.spinnaker.keel.k8s.service.CloudDriverK8sService
-import com.netflix.spinnaker.keel.api.DeliveryConfig
 import com.netflix.spinnaker.keel.api.Resource
 import com.netflix.spinnaker.keel.artifacts.DockerArtifact
 import com.netflix.spinnaker.keel.clouddriver.CloudDriverCache
@@ -122,18 +121,19 @@ class DockerImageResolver(
         containers.forEach {
             val artifact = getArtifact(it, deliveryConfig)
             val tag: String = findTagGivenDeliveryConfig(deliveryConfig, environment, artifact)
-            val dockerImage = getImage(account, artifact, tag, resource.serviceAccount)
+            val fullDockerImageName = getFullImagePath(tag, artifact, resource.serviceAccount, account)
             val newContainer = DigestProvider(
                 organization = "",
-                image = dockerImage.artifact.reference,
-                digest = dockerImage.digest ?: ""
+                image = fullDockerImageName,
+                digest = ""
             )
-            logger.info("resolving $artifact to ${dockerImage.artifact.reference}")
+            logger.info("resolving $artifact to $fullDockerImageName")
             updatedResource = updateContainerInSpec(updatedResource, newContainer, artifact, tag)
         }
         return updatedResource
     }
 
+    // This is necessary for artifacts filled before 0.203.0
     fun getImage(account: String, artifact: DockerArtifact, tag: String, serviceAccount: String): ClouddriverDockerImage {
         return runBlocking {
             logger.debug("getting docker images from clouddriver. account: $account, repository: ${artifact.name}, tag: $tag")
@@ -148,6 +148,24 @@ class DockerImageResolver(
                 }
             }
             throw DockerImageNotFound(account, artifact.name, tag)
+        }
+    }
+
+    private fun getFullImagePath(version: String, artifact: DockerArtifact, serviceAccount: String, clouddriverAccount: String): String {
+        val targetArtifact = repository.getArtifactVersion(artifact, version, null)
+        targetArtifact?.let {
+            if (it.metadata.containsKey("fullImagePath")
+                && it.metadata["fullImagePath"].toString() != "NULL"
+                && it.metadata["fullImagePath"].toString().isNotBlank()
+            ) {
+                return it.metadata["fullImagePath"].toString()
+            }
+            // assume artifact information was filled before keel v0.203.0
+            val imageFromClouddriver = getImage(clouddriverAccount, artifact, version, serviceAccount)
+            return imageFromClouddriver.artifact.reference
+        } ?: run {
+            logger.warn("could not find specified Docker artifact version. version: $version, artifact: ${artifact.name}")
+            throw NoVersionAvailable("${artifact.name}:${version}", "docker")
         }
     }
 }
