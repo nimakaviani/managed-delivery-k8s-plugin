@@ -154,9 +154,9 @@ class DockerImageResolver(
     private fun getFullImagePath(version: String, artifact: DockerArtifact, serviceAccount: String, clouddriverAccount: String): String {
         val targetArtifact = repository.getArtifactVersion(artifact, version, null)
         targetArtifact?.let {
-            if (it.metadata.containsKey("fullImagePath")
-                && it.metadata["fullImagePath"].toString() != "NULL"
-                && it.metadata["fullImagePath"].toString().isNotBlank()
+            if (it.metadata.containsKey("fullImagePath") &&
+                it.metadata["fullImagePath"].toString() != "NULL" &&
+                it.metadata["fullImagePath"].toString().isNotBlank()
             ) {
                 return it.metadata["fullImagePath"].toString()
             }
