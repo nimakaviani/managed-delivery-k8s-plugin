@@ -10,7 +10,7 @@
 |  0.0.{8,9}   |  0.195.0 |
 |  0.0.10      |  0.197.0 |
 |  0.0.11      |  0.202.0 |
-
+|  0.0.12      |  0.203.0 |
 It is also recommended to use Spinnaker Release >  1.25.2 for the most recent
 version of Spinnaker components. For tracking of Docker artifacts and integration with CI (i.e. Jenkins),
 you can also follow instructions on deploying the [CI Build Plugin](https://github.com/nimakaviani/ci-build-plugin).
@@ -86,21 +86,6 @@ rollouts to resources it manages when artifacts change.
 
 If you want to use this plugin to manage rollout of Docker container image artifacts to Kubernetes, first _CloudDriver_ needs to
 be configured to know about these Docker repositories.
-
-**IMPORTANT**: _The Managed Delivery K8s plugin currently only supports one `account` name to be
-associated with a resource. In order for the container registry account to be used in combination with the
-Kubernetes account (hence, two accounts for a resource), conventionally the container registry account should be named as
-follows `[K8-ACCOUNT-NAME]-registry`, where `[K8-ACCOUNT-NAME]` should be identical to the name used for the
-Kubernetes account._
-
-```yaml
-dockerRegistry:
-accounts:
-- address: https://index.docker.io # example registry
-  name: "[K8s-ACCOUNT-NAME]-registry"
-  repositories:
-  - example/service
-```
 
 To have managed delivery track artifacts, you first introduce them under the delivery config:
 
