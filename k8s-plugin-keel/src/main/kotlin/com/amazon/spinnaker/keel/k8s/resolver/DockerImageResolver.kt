@@ -133,7 +133,7 @@ class DockerImageResolver(
         return updatedResource
     }
 
-    // This is necessary for artifacts filled before 0.203.0
+    // This is necessary for artifacts filled before keel version 0.203.0
     fun getImage(account: String, artifact: DockerArtifact, tag: String, serviceAccount: String): ClouddriverDockerImage {
         return runBlocking {
             logger.debug("getting docker images from clouddriver. account: $account, repository: ${artifact.name}, tag: $tag")
@@ -160,11 +160,11 @@ class DockerImageResolver(
             ) {
                 return it.metadata["fullImagePath"].toString()
             }
-            // assume artifact information was filled before keel v0.203.0
+            logger.debug("could not retrieve fully qualified docker image name. Attempting to get it from clouddriver")
             val imageFromClouddriver = getImage(clouddriverAccount, artifact, version, serviceAccount)
             return imageFromClouddriver.artifact.reference
         } ?: run {
-            logger.warn("could not find specified Docker artifact version. version: $version, artifact: ${artifact.name}")
+            logger.error("could not find specified Docker artifact version. version: $version, artifact: ${artifact.name}")
             throw NoVersionAvailable("${artifact.name}:${version}", "docker")
         }
     }
