@@ -35,6 +35,7 @@ class K8sJobEvaluator(
     private val orcaService: OrcaService
 ) : VerificationEvaluator<K8sJobVerification> {
     private val log by lazy { LoggerFactory.getLogger(javaClass) }
+    private val re = Regex(K8S_INVALID_CHARACTER_REGEX)
     override val supportedVerification =
         VERIFICATION_K8S_JOB_V1 to K8sJobVerification::class.java
 
@@ -133,7 +134,7 @@ class K8sJobEvaluator(
         }
         metadata.remove(NAME)
         if (!metadata.containsKey(GENERATE_NAME)) {
-            var generateName = "verify-$application-$environment-$version"
+            var generateName = validK8sName("verify-$application-$environment-$version")
             verification.jobNamePrefix?.let {
                 generateName = "$it-$generateName"
             }
@@ -173,8 +174,12 @@ class K8sJobEvaluator(
         }
         // apply verifyWith specific labels
         labels[VERIFICATION_ENVIRONMENT_LABEL] = environment
-        labels[VERIFICATION_ARTIFACT_LABEL] = artifactVersion
+        labels[VERIFICATION_ARTIFACT_LABEL] = validK8sName(artifactVersion)
 
         metadata[LABELS] = labels
+    }
+
+    private fun validK8sName(k8sName: String): String {
+        return re.replace(k8sName, "-")
     }
 }
