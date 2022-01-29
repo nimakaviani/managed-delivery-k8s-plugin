@@ -154,11 +154,20 @@ class DockerImageResolver(
     private fun getFullImagePath(version: String, artifact: DockerArtifact, serviceAccount: String, clouddriverAccount: String): String {
         val targetArtifact = repository.getArtifactVersion(artifact, version, null)
         targetArtifact?.let {
+            // fullImagePath should be available if this artifact was filled through Keel.
             if (it.metadata.containsKey("fullImagePath") &&
                 it.metadata["fullImagePath"].toString() != "NULL" &&
                 it.metadata["fullImagePath"].toString().isNotBlank()
             ) {
                 return it.metadata["fullImagePath"].toString()
+            }
+            // We should check if registry information is present in case this artifact was filled through echo event.
+            // Note: registry in metadata here means account name in clouddriver
+            if (it.metadata.containsKey("registry")) {
+                val registry = it.metadata["registry"].toString()
+                logger.debug("attempting to retrive fully qualified docker image name with registry: $registry")
+                val imageFromClouddriver = getImage(registry, artifact, version, serviceAccount)
+                return imageFromClouddriver.artifact.reference
             }
             logger.debug("could not retrieve fully qualified docker image name. Attempting to get it from clouddriver")
             val imageFromClouddriver = getImage(clouddriverAccount, artifact, version, serviceAccount)
