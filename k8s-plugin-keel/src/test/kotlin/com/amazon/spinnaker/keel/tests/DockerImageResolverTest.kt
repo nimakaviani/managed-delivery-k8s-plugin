@@ -553,6 +553,48 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                     }
                 }
             }
+
+            context("when docker artifact is filled by Igor") {
+                before {
+                    deploymentSpec = deploymentSpec(
+                        references = mutableSetOf("main-container"),
+                        containers = arrayListOf(
+                            mapOf(
+                                "name" to "main",
+                                "image" to "main-container"
+                            )
+                        )
+                    )
+
+                    deliveryConfig = deliveryConfig(resources = setOf(deploymentSpec))
+
+                    every { repository.deliveryConfigFor(deploymentSpec.id) } returns deliveryConfig
+                    every { repository.environmentFor(deploymentSpec.id) } returns deliveryConfig.environments.first()
+
+                    every {
+                        repository.latestVersionApprovedIn(
+                            deliveryConfig,
+                            artifacts.elementAt(0),
+                            "test"
+                        )
+                    } returns "0.0.1"
+
+                    every {
+                        repository.getArtifactVersion(
+                            artifacts.first(),
+                            "0.0.1",
+                            null
+                        )
+                    } returns getPublishedArtifactFromIgor("0.0.1", true)
+                }
+
+                test("corret artifact is selected") {
+                    val resolvedResource = this.invoke(deploymentSpec)
+                    expect {
+                        that(getImageWithName(resolvedResource, "main")).isEqualTo("index.docker.io/spkr/main:0.0.1")
+                    }
+                }
+            }
         }
     }
 
@@ -573,6 +615,21 @@ internal class DockerImageResolverTest : JUnit5Minutests {
                     "fullImagePath" to "index.docker.io/spkr/$repo:$version",
                     "clouddriverAccount" to "test-registry",
                     "registry" to "index.docker.io"
+                )
+            } else {
+                emptyMap()
+            }
+        )
+
+    private fun getPublishedArtifactFromIgor(version: String, metadata: Boolean = true): PublishedArtifact =
+        PublishedArtifact(
+            name = version,
+            type = "DOCKER",
+            reference = version,
+            version = version,
+            metadata = if (metadata) {
+                mapOf(
+                    "registry" to "test-registry"
                 )
             } else {
                 emptyMap()
