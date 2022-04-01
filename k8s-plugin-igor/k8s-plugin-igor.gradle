@@ -1,0 +1,76 @@
+
+apply plugin: "java-library"
+apply plugin: "io.spinnaker.plugin.service-extension"
+apply plugin: "maven-publish"
+apply plugin: "kotlin"
+apply plugin: "kotlin-kapt"
+
+sourceCompatibility = 11
+targetCompatibility = 11
+
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
+    if (property("korkVersion").toString().endsWith("-SNAPSHOT")) {
+        mavenLocal()
+    }
+}
+
+spinnakerPlugin {
+    serviceName = "igor"
+    pluginClass = "com.amazon.spinnaker.igor.k8s.ManagedDeliveryK8sPlugin"
+    requires="igor>=0.0.0"
+    description = 'Plugin to enable K8s in Managed Delivery.'
+    version = rootProject.version
+}
+
+dependencies {
+//    compileOnly ("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${kotlinVersion}")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
+    compileOnly (group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.11.1')
+    compileOnly (group: 'io.spinnaker.igor', name: 'igor-core', version: "${igorVersion}")
+    compileOnly (group: 'io.spinnaker.igor', name: 'igor-web', version: "${igorVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-core', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-jedis', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-web', version: "${korkVersion}")
+    compileOnly (group: 'io.spinnaker.kork', name: 'kork-artifacts', version: "${korkVersion}")
+    compileOnly (group: 'com.squareup.retrofit', name: 'retrofit', version: "1.9.0")
+    compileOnly (group: 'com.squareup.retrofit', name: 'converter-jackson', version: "1.9.0")
+    compileOnly (group: 'org.codehaus.groovy', name: 'groovy-all', version: "2.5.11")
+    kapt(group: 'org.pf4j', name: 'pf4j', version: "${pf4jVersion}")
+
+    testImplementation ("org.junit.jupiter:junit-jupiter-api:5.7.2")
+    testImplementation (group: 'io.strikt', name: 'strikt-core', version: '0.31.0')
+    testImplementation (group: 'io.mockk', name: 'mockk', version: '1.11.0')
+    testImplementation (group: 'io.spinnaker.igor', name: 'igor-core', version: "${igorVersion}")
+    testImplementation (group: 'io.spinnaker.igor', name: 'igor-web', version: "${igorVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-plugins-api', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-plugins-spring-api', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-core', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-jedis', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-web', version: "${korkVersion}")
+    testImplementation (group: 'io.spinnaker.kork', name: 'kork-artifacts', version: "${korkVersion}")
+
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+compileKotlin {
+    kotlinOptions {
+        languageVersion = "1.4"
+        jvmTarget = targetCompatibility
+        freeCompilerArgs = ['-Xjvm-default=enable']
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        languageVersion = "1.4"
+        jvmTarget = targetCompatibility
+        freeCompilerArgs = ['-Xjvm-default=enable']
+    }
+}
